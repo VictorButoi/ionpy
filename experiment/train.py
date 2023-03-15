@@ -7,12 +7,12 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from .base import BaseExperiment
-from .util import eval_config, absolute_import
-from ..util.torchutils import to_device
-from ..util.meter import MeterDict
-from ..util.ioutil import autosave
 from ..nn.util import num_params, split_param_groups_by_weight_decay
+from ..util.ioutil import autosave
+from ..util.meter import MeterDict
+from ..util.torchutils import to_device
+from .base import BaseExperiment
+from .util import absolute_import, eval_config
 
 
 class TrainExperiment(BaseExperiment):
@@ -36,9 +36,12 @@ class TrainExperiment(BaseExperiment):
         self.val_dataset = dataset_cls(split="val", **data_cfg)
 
     def build_dataloader(self):
+        assert self.config["dataloader.batch_size"] <= len(
+            self.train_dataset
+        ), "Batch size larger than dataset"
         dl_cfg = self.config["dataloader"]
         self.train_dl = DataLoader(
-            self.train_dataset, shuffle=True, drop_last=True, **dl_cfg
+            self.train_dataset, shuffle=True, drop_last=False, **dl_cfg
         )
         self.val_dl = DataLoader(
             self.val_dataset, shuffle=False, drop_last=False, **dl_cfg
@@ -100,6 +103,8 @@ class TrainExperiment(BaseExperiment):
                     x.load_state_dict(state_dict)
                 else:
                     raise TypeError(f"Unsupported type {type(x)}")
+
+        self._checkpoint_epoch = state["_epoch"]
 
     def checkpoint(self, tag=None):
         self.properties["epoch"] = self._epoch
@@ -170,7 +175,7 @@ class TrainExperiment(BaseExperiment):
             print(f"Start epoch {epoch}")
             self._epoch = epoch
             self.run_phase("train", epoch)
-            if epoch % eval_freq == 0 or epoch == epochs - 1:
+            if eval_freq > 0 and (epoch % eval_freq == 0 or epoch == epochs - 1):
                 self.run_phase("val", epoch)
 
             if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
@@ -209,7 +214,9 @@ class TrainExperiment(BaseExperiment):
                 )
                 metrics = self.compute_metrics(outputs)
                 meters.update(metrics)
-                self.run_callbacks("batch", epoch=epoch, batch_idx=batch_idx, phase=phase)
+                self.run_callbacks(
+                    "batch", epoch=epoch, batch_idx=batch_idx, phase=phase
+                )
 
         metrics = {"phase": phase, "epoch": epoch, **meters.collect("mean")}
         self.metrics.log(metrics)

@@ -4,12 +4,15 @@
 # - https://github.com/fadel/pytorch_ema/blob/master/torch_ema/ema.py
 # - https://github.com/benihime91/gale/blob/master/gale/collections/callbacks/ema.py#L20
 # - https://www.zijianhu.com/post/pytorch/ema/
+# - https://docs.mosaicml.com/en/v0.11.1/api_reference/generated/composer.algorithms.EMA.html#composer.algorithms.EMA
 import copy
+import math
 from typing import Optional
+
+from pydantic import validate_arguments
 
 import torch
 from torch import nn
-from pydantic import validate_arguments
 
 
 class ModelEMA(nn.Module):
@@ -32,7 +35,21 @@ class ModelEMA(nn.Module):
     """
 
     @validate_arguments
-    def __init__(self, model, decay: float = 0.9999, device: Optional[str] = None):
+    def __init__(
+        self,
+        model,
+        decay: Optional[float] = None,
+        half_life: Optional[int] = None,
+        device: Optional[str] = None,
+    ):
+        assert (decay is None) ^ (
+            half_life is None
+        ), "either decay or half_life must be None"
+        if decay is None and half_life is None:
+            decay = 0.9999
+        if half_life is not None:
+            decay = math.exp(-math.log(2) / half_life)
+
         super().__init__()
         if decay <= 0.0 or decay >= 1.0:
             raise ValueError("Decay must be between 0 and 1")
@@ -40,6 +57,7 @@ class ModelEMA(nn.Module):
         self.module = copy.deepcopy(model)
         self.module.eval()
         self.decay = decay
+        self.half_life = half_life
         self.device = device  # perform ema on different device from model if set
         if self.device is not None:
             self.module.to(device=device)
@@ -61,24 +79,42 @@ class ModelEMA(nn.Module):
     def set(self, model):
         self._update(model, update_fn=lambda e, m: m)
 
+    def forward(self, *args, **kwargs):
+        return self.module(*args, **kwargs)
+
 
 # Unlike ModelEMA which is intended for aside tracking, this is a full wrapper that uses EMA
 # in eval mode
 class EMAWrapper(nn.Module):
     @validate_arguments
-    def __init__(self, model, decay: float = 0.9999):
+    def __init__(
+        self,
+        model,
+        decay: Optional[float] = 0.9999,
+        half_life: Optional[float] = None,
+        delay: int = 0,  # number of steps to ignore
+        update_on_forward: bool = False,
+    ):
         super().__init__()
         self.model = model
-        self.ema = ModelEMA(self.model, decay=decay)
+        self.update_on_forward = update_on_forward
+        self.ema = ModelEMA(self.model, decay=decay, half_life=half_life)
+        self.delay = delay
+        self.register_buffer("_step", torch.zeros(tuple()), persistent=True)
 
     @torch.no_grad()
     def update(self):
         if not self.training:
             raise RuntimeError(f"update should only be called in training mode")
+        if self._step.item() < self.delay:
+            return
         self.ema.update(self.model)
+        self._step += 1
 
     def forward(self, *args, **kwargs):
         if self.training:
-            self.model(*args, **kwargs)
+            if self.update_on_forward:
+                self.update()
+            return self.model(*args, **kwargs)
         else:
-            self.ema(*args, **kwargs)
+            return self.ema(*args, **kwargs)
