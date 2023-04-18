@@ -168,10 +168,6 @@ class TrainExperiment(BaseExperiment):
         checkpoint_freq: int = self.config.get("log.checkpoint_freq", 1)
         eval_freq: int = self.config.get("train.eval_freq", 1)
 
-        # self.run_callbacks("setup")
-
-        # try:
-
         for epoch in range(last_epoch + 1, epochs):
             print(f"Start epoch {epoch}")
             self._epoch = epoch
@@ -212,6 +208,7 @@ class TrainExperiment(BaseExperiment):
                     backward=grad_enabled,
                     augmentation=augmentation,
                     epoch=epoch,
+                    phase=phase
                 )
                 metrics = self.compute_metrics(outputs)
                 meters.update(metrics)
