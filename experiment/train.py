@@ -16,6 +16,7 @@ from .util import absolute_import, eval_config
 
 
 class TrainExperiment(BaseExperiment):
+
     def __init__(self, path):
         torch.backends.cudnn.benchmark = True
         super().__init__(path)
@@ -249,9 +250,3 @@ class TrainExperiment(BaseExperiment):
 
     def build_augmentations(self):
         pass
-
-
-# Example use:
-# >>> from universeg.experiment import TrainExperiment
-# >>> exp =  TrainExperiment.from_config(config)
-# >>> exp.run()
