@@ -177,6 +177,7 @@ class TrainExperiment(BaseExperiment):
 
             if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
                 self.checkpoint()
+
             self.run_callbacks("epoch", epoch=epoch)
 
         self.checkpoint(tag="last")
