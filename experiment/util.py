@@ -40,21 +40,28 @@ def absolute_import(reference):
     raise ImportError(f"Could not import {reference}")
 
 
-def eval_config(config):
+def eval_config(config, opt_kwargs=None):
+
     if not isinstance(config, (dict, list, HDict)):
         return config
+
     if isinstance(config, HDict):
-        return eval_config(config.to_dict())
+        return eval_config(config.to_dict(), opt_kwargs)
+
     if isinstance(config, list):
-        return [eval_config(v) for v in config]
+        return [eval_config(v, opt_kwargs) for v in config]
+
     for k, v in config.items():
         if isinstance(v, (dict, list)):
-            config[k] = eval_config(v)
+            config[k] = eval_config(v, opt_kwargs)
 
     state = config.pop("_state", None)
 
     if "_class" in config:
-        config = absolute_import(config.pop("_class"))(**config)
+        if opt_kwargs is None:
+            config = absolute_import(config.pop("_class"))(**config)
+        else:
+            config = absolute_import(config.pop("_class"))(**config, **opt_kwargs)
     elif "_fn" in config:
         fn = absolute_import(config.pop("_fn"))
         config = partial(fn, **config)
