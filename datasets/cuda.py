@@ -10,6 +10,9 @@ class CUDACachedDataset(Dataset):
         self._dataset = dataset
         self._cache = [to_device(i, "cuda") for i in self._dataset]
 
+    def to_cpu(self):
+        self._cache = [to_device(i, "cpu") for i in self._cache]
+
     def __getitem__(self, idx):
         return self._cache[idx]
 

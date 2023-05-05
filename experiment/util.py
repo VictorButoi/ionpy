@@ -61,7 +61,9 @@ def eval_config(config, opt_kwargs=None):
         if opt_kwargs is None:
             config = absolute_import(config.pop("_class"))(**config)
         else:
-            config = absolute_import(config.pop("_class"))(**config, **opt_kwargs)
+            imp_class = config.pop("_class")
+            print(imp_class)
+            config = absolute_import(imp_class)(**config, **opt_kwargs)
     elif "_fn" in config:
         fn = absolute_import(config.pop("_fn"))
         config = partial(fn, **config)

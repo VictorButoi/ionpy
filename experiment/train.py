@@ -128,15 +128,16 @@ class TrainExperiment(BaseExperiment):
             return checkpoints
         return [c.stem for c in checkpoints]
 
-    def load(self, tag=None):
+    def load(self, tag=None, verbose=False):
         checkpoint_dir = self.path / "checkpoints"
         tag = tag if tag is not None else "last"
         with (checkpoint_dir / f"{tag}.pt").open("rb") as f:
             state = torch.load(f, map_location=self.device)
             self.set_state(state)
-        print(
-            f"Loaded checkpoint with tag:{tag}. Last epoch:{self.properties['epoch']}"
-        )
+        if verbose:
+            print(
+                f"Loaded checkpoint with tag:{tag}. Last epoch:{self.properties['epoch']}"
+            )
         return self
 
     def to_device(self):
@@ -205,8 +206,8 @@ class TrainExperiment(BaseExperiment):
             # with torch.inference_mode(not grad_enabled):
             for batch_idx, batch in enumerate(dl):
                 outputs = self.run_step(
-                    batch_idx,
-                    batch,
+                    batch_idx=batch_idx,
+                    batch=batch,
                     backward=grad_enabled,
                     augmentation=augmentation,
                     epoch=epoch,
