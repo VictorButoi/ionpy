@@ -48,9 +48,11 @@ def check_environment():
     if not check_numpy_mkl():
         warn("Intel MKL extensions not available for NumPy")
     if not check_scipy_mkl():
-        warn("Intel MKL extensions not available for SciPy")
+        #warn("Intel MKL extensions not available for SciPy")
+        pass
     if not check_libjpeg_turbo():
-        warn("libjpeg_turbo not enabled for Pillow")
+        #warn("libjpeg_turbo not enabled for Pillow")
+        pass
     if not check_pillow_simd():
         warn("Using slow Pillow instead of Pillow-SIMD")
     if not check_torch_cuda():

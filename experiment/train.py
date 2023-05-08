@@ -67,7 +67,6 @@ class TrainExperiment(BaseExperiment):
         self.optim = eval_config(optim_cfg)
 
     def build_loss(self):
-        print(self.config["loss_func"])
         self.loss_func = eval_config(self.config["loss_func"])
 
     def build_metrics(self):
