@@ -8,7 +8,7 @@ from lmdbm import Lmdb
 
 from pydantic import validate_arguments
 
-from IonPy.util import autopackb, autounpackb
+from ionpy.util import autopackb, autounpackb
 
 
 class ThunderDB(Lmdb):

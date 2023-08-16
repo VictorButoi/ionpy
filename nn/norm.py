@@ -3,7 +3,7 @@ from typing import Literal, Tuple, Union
 import einops as E
 import torch
 from pydantic import validate_arguments
-from pylot.nn import batch_renorm
+from ionpy.nn import batch_renorm
 from torch import nn
 
 NormType = Union[

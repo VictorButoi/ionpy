@@ -182,13 +182,7 @@ class TrainExperiment(BaseExperiment):
             self.run_callbacks("epoch", epoch=epoch)
 
         self.checkpoint(tag="last")
-
         self.run_callbacks("wrapup")
-
-        # except KeyboardInterrupt:
-        #     print(f"Interrupted at epoch {epoch}. Tearing Down")
-        #     self.checkpoint(tag="interrupt")
-        #     sys.exit(1)
 
     def run_phase(self, phase, epoch):
 
