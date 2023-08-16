@@ -13,12 +13,12 @@ from typing import Any, Callable, Literal, Optional
 import lmdb
 import numpy as np
 from PIL import Image
+from torch.utils.data import Dataset
 from torchvision.datasets import VisionDataset
 from tqdm.auto import tqdm
 
-from pylot.datasets import IndexedImageFolder
-from pylot.util.ioutil import autodecode, autoencode
-from torch.utils.data import Dataset
+from ionpy.datasets import IndexedImageFolder
+from ionpy.util.ioutil import autodecode, autoencode
 
 
 class ImageFolderLMDB(VisionDataset):

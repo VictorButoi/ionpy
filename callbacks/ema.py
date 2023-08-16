@@ -1,4 +1,3 @@
-
 from ionpy.util import autosave, autoload
 from ..nn.ema import ModelEMA
 

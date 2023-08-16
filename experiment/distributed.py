@@ -1,9 +1,9 @@
 from torch.nn.parallel import DistributedDataParallel as DDP
 import torch.distributed as dist
 import os
-from pylot.experiment import TrainExperiment
-from pylot.util.pipes import quiet_std
-from pylot.util import ThunderDict, MetricsDict
+from ionpy.experiment import TrainExperiment
+from ionpy.util.pipes import quiet_std
+from ionpy.util import ThunderDict, MetricsDict
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 
