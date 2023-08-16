@@ -5,9 +5,7 @@ from typing import Iterable, Dict
 
 import lmdb
 from lmdbm import Lmdb
-
 from pydantic import validate_arguments
-
 from ionpy.util import autopackb, autounpackb
 
 

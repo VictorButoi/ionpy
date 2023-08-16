@@ -10,7 +10,7 @@ from torchvision.datasets import ImageFolder, MNIST
 
 from tqdm.auto import tqdm
 
-from IonPy.datasets import DatapathMixin, IndexedImageFolder
+from ionpy.datasets import DatapathMixin, IndexedImageFolder
 
 # Download and untar
 # http://yaroslavvb.com/upload/notMNIST/notMNIST_large.tar.gz

@@ -1,7 +1,5 @@
-import torch
 
-from pylot.util import autosave, autoload
-
+from ionpy.util import autosave, autoload
 from ..nn.ema import ModelEMA
 
 
