@@ -209,7 +209,10 @@ class TrainExperiment(BaseExperiment):
                 metrics = self.compute_metrics(outputs)
                 meters.update(metrics)
                 self.run_callbacks(
-                    "batch", epoch=epoch, batch_idx=batch_idx, phase=phase
+                    "batch", 
+                    epoch=epoch, 
+                    batch_idx=batch_idx, 
+                    phase=phase
                 )
 
         metrics = {"phase": phase, "epoch": epoch, **meters.collect("mean")}

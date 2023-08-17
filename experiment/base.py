@@ -28,6 +28,7 @@ def eval_callbacks(all_callbacks, experiment):
             else:
                 raise TypeError("Callback must be either str or dict")
             evaluated_callbacks[group].append(cb)
+
     return evaluated_callbacks
 
 
