@@ -16,14 +16,17 @@ class SliteRunner:
             available_gpus: List[str], 
             log_root_dir: str='/storage/vbutoi/scratch'
             ):
+
         # Configure Submitit object
         submitit_root = f"{log_root_dir}/submitit/{exp_name}"
         self.executor = submitit.LocalExecutor(folder=submitit_root)
         self.executor.parameters['visible_gpus'] = available_gpus
         self.executor.parameters['timeout_min'] = int(24 * 60 * 7)
+
         # Keep track of important properties
         self.available_gpus = available_gpus
         self.task_type = task_type
+
         # Keep cache of jobs
         self.jobs = []
     
@@ -36,9 +39,11 @@ class SliteRunner:
             self.jobs.append(job)
 
     def run_exp(self, cfg):
+
         # Make sure GPUs are visible
         gpu_list = ','.join(self.available_gpus)
         os.environ["CUDA_VISIBLE_DEVICES"] = gpu_list
+
         # Run experiment
         exp = self.task_type.from_config(cfg)
         exp.run()

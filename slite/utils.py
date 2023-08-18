@@ -1,8 +1,13 @@
 import os
 import time
+import sys
 
 
 def task(c_idx, cfg_group, exp_type, available_gpus):
+    # Important imports, otherwise the processes will not be able to import the necessary modules
+    sys.path.append('/storage/vbutoi/projects')
+    sys.path.append('/storage/vbutoi/projects/ESE')
+
     gpu_idx = c_idx % len(available_gpus)
     os.environ["CUDA_VISIBLE_DEVICES"] = str(available_gpus[gpu_idx])
     for cfg in cfg_group:
