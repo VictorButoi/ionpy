@@ -42,7 +42,7 @@ class SliteRunner:
     def set_exp_name(self, exp_name):
         self.exp_name = exp_name
         self.init_executor()
-
+    
     def submit_exps(self, cfg_list):
         assert self.exp_name is not None, "Must set exp_name before running experiment."
 

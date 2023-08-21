@@ -28,3 +28,15 @@ def chunk_cfs(cfg_list, num_gpus):
         for i in range(overflow_jobs):
             job_counts[i].append(cfg_list[-(i+1)])
     return job_counts
+
+
+def proc_exp_name(exp_name, cfg):
+    params = []
+    params.append("exp_name:" + exp_name)
+    for key, value in cfg.items():
+        if key != "log.root":
+            key_name = key.split(".")[-1]
+            short_value = str(value).replace(" ", "")
+            params.append(f"{key_name}:{short_value}")
+    wandb_string = "-".join(params)
+    return {"log.wandb_string": wandb_string}
