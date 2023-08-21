@@ -4,22 +4,24 @@ from .utils import chunk_cfs, task
 import os
 import submitit
 import time
-from typing import List
+from typing import List, Any
 
 
 class SliteRunner:
 
     def __init__(
             self, 
-            task_type,
+            project: str,
+            task_type: Any,
             exp_name: str = None, 
             available_gpus: List[str] = ['0'], 
             log_root_dir: str='/storage/vbutoi/scratch'
             ):
 
         # Configure Submitit object
-        self.log_root_dir = log_root_dir
+        self.project_name = project 
         self.exp_name = exp_name
+        self.log_root_dir = log_root_dir
         self.avail_gpus = available_gpus
         self.task_type = task_type
 
@@ -31,7 +33,7 @@ class SliteRunner:
         self.jobs = []
     
     def init_executor(self):
-        submitit_root = f"{self.log_root_dir}/submitit/{self.exp_name}"
+        submitit_root = f"{self.log_root_dir}/{self.project_name}/{self.exp_name}/submitit"
         self.executor = submitit.LocalExecutor(folder=submitit_root)
         self.executor.parameters['visible_gpus'] = self.avail_gpus
         self.executor.parameters['timeout_min'] = int(24 * 60 * 7)
