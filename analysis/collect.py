@@ -53,6 +53,7 @@ def shorthand_columns(df):
 
 
 class ResultsLoader:
+
     def __init__(self, cache_file: Optional[str] = None, num_workers: int = 8):
         unixname = getpass.getuser()
         cache_file = cache_file or f"/tmp/{unixname}-results.diskcache"
@@ -266,3 +267,26 @@ class ResultsLoader:
             )
 
         return concat_with_attrs(data_dfs, ignore_index=True)
+
+    @staticmethod
+    def get_experiment(
+        df, 
+        exp_class, 
+        checkpoint,
+        metric="val-dice_score",
+        device="cuda"
+        ):
+
+        phase, score = metric.split("-")
+        subdf = df.select(phase=phase)
+        sorted_df = subdf.sort_values(score, ascending=False)
+        best_exp = sorted_df.iloc[0].path
+        loaded_exp = exp_class(best_exp)
+
+        if checkpoint is not None:
+            loaded_exp.load(tag=checkpoint)
+            
+        if device == "cuda":
+            loaded_exp.to_device()
+
+        return loaded_exp
