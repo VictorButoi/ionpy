@@ -1,4 +1,4 @@
-from .utils import chunk_cfs, task
+from .utils import task
 
 # misc imports
 import os
@@ -45,21 +45,16 @@ class SliteRunner:
     
     def submit_exps(self, cfg_list):
         assert self.exp_name is not None, "Must set exp_name before running experiment."
-
-        cfg_chunks = chunk_cfs(cfg_list, num_gpus=len(self.avail_gpus))
-        for c_idx, cfg_chunk in enumerate(cfg_chunks):
-            job = self.executor.submit(task, c_idx, cfg_chunk, self.task_type, self.avail_gpus)
-            print(f"Submitted job {job.job_id} with {len(cfg_chunk)} configs.")
-            time.sleep(2) # Sleep for 2 seconds to avoid submitting too many jobs at once
+        for cfg in cfg_list:
+            job = self.executor.submit(task, cfg, self.task_type, self.avail_gpus)
+            print(f"Submitted job {job.job_id}.")
             self.jobs.append(job)
 
     def run_exp(self, cfg):
         assert self.exp_name is not None, "Must set exp_name before running experiment."
-
         # Make sure GPUs are visible
         gpu_list = ','.join(self.avail_gpus)
         os.environ["CUDA_VISIBLE_DEVICES"] = gpu_list
-
         # Run experiment
         exp = self.task_type.from_config(cfg)
         exp.run()
