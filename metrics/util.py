@@ -41,6 +41,7 @@ def _inputs_as_onehot(
     from_logits: bool = False,
     discretize: bool = False,
 ) -> Tuple[Tensor, Tensor]:
+
     batch_size, num_classes = y_pred.shape[:2]
 
     if mode == "auto":

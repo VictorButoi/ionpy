@@ -289,4 +289,7 @@ class ResultsLoader:
         if device == "cuda":
             loaded_exp.to_device()
 
+        # Place the logs in the experiment, will be hand later
+        loaded_exp.logs = df.select(path=best_exp).reset_index(drop=True)
+
         return loaded_exp
