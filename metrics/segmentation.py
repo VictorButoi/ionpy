@@ -16,6 +16,42 @@ from .util import (
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
+def dice_score(
+    y_pred: Tensor,
+    y_true: Tensor,
+    mode: InputMode = "auto",
+    smooth: float = 1e-7,
+    eps: float = 1e-7,
+    reduction: Reduction = "mean",
+    batch_reduction: Reduction = "mean",
+    weights: Optional[Union[Tensor, List]] = None,
+    ignore_index: Optional[int] = None,
+    from_logits: bool = False,
+) -> Tensor:
+
+    y_pred, y_true = _inputs_as_onehot(
+        y_pred,
+        y_true,
+        mode=mode,
+        from_logits=from_logits,
+        discretize=True,
+    )
+
+    intersection = torch.logical_and(y_pred == 1.0, y_true == 1.0).sum(dim=-1)
+    cardinalities = (y_pred == 1.0).sum(dim=-1) + (y_true == 1.0).sum(dim=-1)
+
+    score = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
+
+    return _metric_reduction(
+        score,
+        reduction=reduction,
+        weights=weights,
+        ignore_index=ignore_index,
+        batch_reduction=batch_reduction,
+    )
+
+
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
 def pixel_accuracy(
     y_pred: Tensor,
     y_true: Tensor,
@@ -56,8 +92,6 @@ def pixel_mse(
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )
-    # else:
-    #     return F.mse_loss(y_pred, y_true, reduction=reduction)
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -125,42 +159,6 @@ def soft_jaccard_score(
     union = cardinalities - intersection
 
     score = (intersection + smooth) / (union + smooth).clamp_min(eps)
-    return _metric_reduction(
-        score,
-        reduction=reduction,
-        weights=weights,
-        ignore_index=ignore_index,
-        batch_reduction=batch_reduction,
-    )
-
-
-@validate_arguments(config=dict(arbitrary_types_allowed=True))
-def dice_score(
-    y_pred: Tensor,
-    y_true: Tensor,
-    mode: InputMode = "auto",
-    smooth: float = 1e-7,
-    eps: float = 1e-7,
-    reduction: Reduction = "mean",
-    batch_reduction: Reduction = "mean",
-    weights: Optional[Union[Tensor, List]] = None,
-    ignore_index: Optional[int] = None,
-    from_logits: bool = False,
-) -> Tensor:
-
-    y_pred, y_true = _inputs_as_onehot(
-        y_pred,
-        y_true,
-        mode=mode,
-        from_logits=from_logits,
-        discretize=True,
-    )
-
-    intersection = torch.logical_and(y_pred == 1.0, y_true == 1.0).sum(dim=-1)
-    cardinalities = (y_pred == 1.0).sum(dim=-1) + (y_true == 1.0).sum(dim=-1)
-
-    score = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
-
     return _metric_reduction(
         score,
         reduction=reduction,
