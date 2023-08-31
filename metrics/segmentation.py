@@ -66,6 +66,43 @@ def pixel_accuracy(
     return correct.float().mean()
 
 
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
+def balanced_pixel_accuracy(
+    y_pred: Tensor,
+    y_true: Tensor,
+    mode: InputMode = "auto",
+    from_logits: bool = False,
+    ignore_labels: List[int] = []
+) -> Tensor:
+    y_pred, y_true = _inputs_as_longlabels(
+        y_pred, y_true, mode, from_logits=from_logits, discretize=True
+    )
+
+    # Get unique labels in y_true
+    unique_labels = torch.unique(y_true).tolist()
+
+    # Remove labels to be ignored
+    unique_labels = [label for label in unique_labels if label not in ignore_labels]
+    accuracies = []
+    
+    for label in unique_labels:
+        # Create a mask for the current label
+        label_mask = (y_true == label).bool()
+        
+        # Extract predictions and ground truth for pixels belonging to the current label
+        label_pred = y_pred[label_mask]
+        label_true = y_true[label_mask]
+        
+        # Calculate accuracy for the current label
+        correct_label = (label_pred == label_true).float()
+        accuracies.append(correct_label.mean())
+        
+    # Calculate balanced accuracy by averaging individual label accuracies
+    balanced_accuracy = torch.tensor(accuracies).mean()
+    
+    return balanced_accuracy
+
+
 def pixel_mse(
     y_pred: Tensor,
     y_true: Tensor,

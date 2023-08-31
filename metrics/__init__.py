@@ -7,6 +7,7 @@ from .segmentation import (
     soft_dice_score,
     soft_jaccard_score,
     pixel_accuracy,
+    balanced_pixel_accuracy,
     pixel_mse,
     dice_score,
     jaccard_score,
