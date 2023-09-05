@@ -45,7 +45,8 @@ def dfs(
 
 @validate_arguments_init
 def get_connected_components(
-    label: torch.Tensor
+    array: torch.Tensor,
+    visited: torch.Tensor = None,
 ) -> List[torch.Tensor]:
     """
     Returns a list of images with the same shape as label, where each image 
@@ -53,16 +54,23 @@ def get_connected_components(
     :param label: A binary 2D torch tensor.
     :return: A list of binary 2D torch tensors, one for each connected component.
     """
-    rows, cols = label.shape 
-    visited = torch.zeros(label.shape, dtype=bool)
-    connected_components = []
+    rows, cols = array.shape 
+    
+    # If you haven't explored anything yet, then make a visited tensor. 
+    if visited is None:
+        visited = torch.zeros(array.shape, dtype=bool)
 
+    # Iterate through the image and get the connected components.
+    connected_components = []
     for i in range(rows):
         for j in range(cols):
-            if not visited[i, j] and label[i, j]:
-                component_idxs = dfs(i, j, label, visited)
-                comp_image = torch.zeros_like(label)
+            if not visited[i, j] and array[i, j]:
+                component_idxs = dfs(i, j, array, visited)
+
+                # Create an image corresponding to THIS connected commponent.
+                comp_image = torch.zeros_like(array)
                 comp_image[component_idxs[:, 0], component_idxs[:, 1]] = 1
+
                 # Make sure the island is a bool tensor so it can be used for indexing.
                 connected_components.append(comp_image.bool())
     
