@@ -4,6 +4,7 @@ from ionpy.util.validation import validate_arguments_init
 
 # misc imports
 from typing import List
+from scipy.ndimage.measurements import label
 
 
 @validate_arguments_init
@@ -44,7 +45,7 @@ def dfs(
 
 
 @validate_arguments_init
-def get_connected_components(
+def slow_get_connected_components(
     array: torch.Tensor,
     visited: torch.Tensor = None,
 ) -> List[torch.Tensor]:
@@ -74,5 +75,35 @@ def get_connected_components(
                 # Make sure the island is a bool tensor so it can be used for indexing.
                 connected_components.append(comp_image.bool())
     
+    return connected_components
+
+
+@validate_arguments_init
+def get_connected_components(
+    binary_tensor: torch.Tensor
+) -> List[torch.Tensor]:
+    """
+    Returns a list of images with the same shape as label, where each image 
+    corresponds to a binary mask for each connected commponent in label.
+    :param binary_tensor: A binary 2D torch tensor.
+    :return: A list of binary 2D torch tensors, one for each connected component.
+    """
+
+    # Convert torch tensor to numpy array
+    binary_array = binary_tensor.cpu().numpy()
+
+    # Label the connected components
+    labeled_array, num_features = label(binary_array)
+
+    connected_components = []
+
+    for i in range(1, num_features + 1):
+        # Extract the i-th component
+        component_array = (labeled_array == i).astype(int)
+        
+        # Convert the numpy array back to torch tensor
+        component_tensor = torch.from_numpy(component_array).bool()
+        connected_components.append(component_tensor)
+
     return connected_components
 
