@@ -1,5 +1,6 @@
 from typing import Any, List
 from .runner import SliteRunner
+import multiprocessing
 
 
 def submit_exps(
@@ -11,15 +12,18 @@ def submit_exps(
 ):
     assert exp_name != "debug", "Cannot launch debug jobs large-scale."
 
-    # Create a runner
-    runner = SliteRunner(
-        project=project,
-        exp_class=exp_class,
-        available_gpus=available_gpus,
-        exp_name=exp_name
-    )
+    def launch_training():
+        # Create a runner
+        runner = SliteRunner(
+            project=project,
+            exp_class=exp_class,
+            available_gpus=available_gpus,
+            exp_name=exp_name
+        )
 
-    # Submit the experiments
-    jobs = runner.submit_exps(config_list)
+        # Submit the experiments
+        runner.submit_exps(config_list)
 
-    return jobs
+    # Launch the training
+    process = multiprocessing.Process(target=launch_training)
+    process.start()
