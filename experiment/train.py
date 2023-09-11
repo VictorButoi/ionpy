@@ -21,8 +21,8 @@ class TrainExperiment(BaseExperiment):
         torch.backends.cudnn.benchmark = True
         super().__init__(path)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.build_data()
         self.build_model()
+        self.build_data()
         self.build_optim()
         self.build_loss()
         self.build_metrics()

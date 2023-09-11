@@ -153,9 +153,9 @@ def _metric_reduction(
         weights = [1.0 if i != ignore_index else 0.0 for i in range(channels)]
 
     if weights:
-        assert len(weights) == len(
-            loss
-        ), f"Weights must match number of channels {len(loss)} != {len(loss)}"
+        assert (
+            len(weights) == channels
+        ), f"Weights must match number of channels {len(weights)} != {channels}"
 
         if isinstance(weights, list):
             weights = torch.Tensor(weights)
