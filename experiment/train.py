@@ -189,7 +189,15 @@ class TrainExperiment(BaseExperiment):
         dl = getattr(self, f"{phase}_dl")
 
         grad_enabled = phase == "train"
-        augmentation = (phase == "train") and ("augmentations" in self.config)
+
+        # Check if augmentations are enabled
+        if "augmentations" in self.config:
+            aug_cfg = self.config["augmentations"]
+        else:
+            aug_cfg = None
+
+        augmentation = (phase == "train") and (aug_cfg is not None)
+
 
         self.model.train(grad_enabled)  # For dropout, batchnorm, &c
 

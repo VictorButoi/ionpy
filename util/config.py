@@ -3,7 +3,7 @@ import hashlib
 import pathlib
 from collections.abc import MutableMapping, Mapping
 from contextlib import contextmanager
-from typing import Any, Union, Tuple, Dict
+from typing import Any, Union, Tuple, Dict, List
 
 import yaml
 
@@ -292,8 +292,11 @@ class Config(HDict):
         return super().pop(key, *default)
 
     @newobj
-    def update(self, other):
-        return super().update(other)
+    def update(self, others):
+        item = super()
+        for other in others:
+            item.update(other)
+        return item
 
 
 class ImmutableConfig(HDict):
@@ -391,7 +394,7 @@ class FHDict(HDict):
         with self._fileop(persist=True):
             super().clear()
 
-    def update(self, other: Union["HDict", dict]):
+    def update(self, others: Union["HDict", dict]):
         with self._fileop(persist=True):
             super().update(other)
 

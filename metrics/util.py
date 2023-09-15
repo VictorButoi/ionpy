@@ -42,6 +42,9 @@ def _inputs_as_onehot(
     discretize: bool = False,
 ) -> Tuple[Tensor, Tensor]:
 
+    assert len(y_pred.shape) == 4, f"y_pred must have 4 dimensions, got {y_pred.shape}"
+    assert len(y_true.shape) == 4, f"y_true must have 3 dimensions, got {y_true.shape}"
+    
     batch_size, num_classes = y_pred.shape[:2]
 
     if mode == "auto":
@@ -79,6 +82,11 @@ def _inputs_as_onehot(
     elif mode == "multiclass":
         y_pred = y_pred.reshape(batch_size, num_classes, -1)
         y_true = y_true.reshape(batch_size, -1)
+
+        # if y_true is not int64, convert to int64        
+        if y_true.dtype != torch.int64:
+            y_true = y_true.long()
+
         y_true = F.one_hot(y_true, num_classes).permute(0, 2, 1)
 
     assert y_pred.shape == y_true.shape
@@ -150,8 +158,10 @@ def _metric_reduction(
     ), "When setting weights, do not include ignore_index separately"
 
     if ignore_index is not None:
+        assert channels != 1, "Cannot ignore index in binary classification."
+        assert ignore_index <= channels, "Cannot ignore index outside of channels." 
         weights = [1.0 if i != ignore_index else 0.0 for i in range(channels)]
-
+    
     if weights:
         assert (
             len(weights) == channels
@@ -170,10 +180,13 @@ def _metric_reduction(
     N = channels
     if ignore_index is not None and 0 <= ignore_index < N:
         N -= 1
+
     if reduction is None:
         return loss
+
     if reduction == "mean":
         return loss.sum(dim=-1) / N
+
     if reduction == "sum":
         return loss.sum(dim=-1)
 
