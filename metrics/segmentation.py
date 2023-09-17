@@ -1,9 +1,10 @@
-from typing import Optional, Union, List, Literal
-
+# torch imports
 import torch
 from torch import Tensor
-import torch.nn.functional as F
+
+# misc imports
 from pydantic import validate_arguments
+from typing import Optional, Union, List
 
 
 from .util import (
@@ -24,6 +25,7 @@ def dice_score(
     eps: float = 1e-7,
     reduction: Reduction = "mean",
     batch_reduction: Reduction = "mean",
+    ignore_empty_labels: bool = False,
     weights: Optional[Union[Tensor, List]] = None,
     ignore_index: Optional[int] = None,
     from_logits: bool = False,
@@ -38,9 +40,18 @@ def dice_score(
     )
 
     intersection = torch.logical_and(y_pred == 1.0, y_true == 1.0).sum(dim=-1)
-    cardinalities = (y_pred == 1.0).sum(dim=-1) + (y_true == 1.0).sum(dim=-1)
+    pred_amounts = (y_pred == 1.0).sum(dim=-1)
+    true_amounts = (y_true == 1.0).sum(dim=-1)
+    cardinalities = pred_amounts + true_amounts
 
     dice_scores = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
+
+    if ignore_empty_labels:
+        existing_label = (true_amounts > 0).float().cpu()
+        if weights is None:
+            weights = existing_label
+        else:
+            weights = weights * existing_label
 
     score = _metric_reduction(
         dice_scores,
@@ -49,15 +60,6 @@ def dice_score(
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )
-
-    if score > 0.5:
-        print("dice score: ", score)
-        print("ypred: ", y_pred.shape)
-        print("ytrue: ", y_true.shape)
-        print("intersection: ", intersection)
-        print("cardinalties for ypred: ", (y_pred == 1.0).sum(dim=-1))
-        print("cardinalties for ytrue: ", (y_true == 1.0).sum(dim=-1))
-
 
     return score
 

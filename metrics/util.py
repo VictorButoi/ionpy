@@ -1,12 +1,12 @@
-from enum import Enum
-from typing import Literal, Optional, Tuple, Union
+# torch imports
+import torch
+from torch import Tensor
+import torch.nn.functional as F
 
+# misc imports
 import einops as E
 from pydantic import validate_arguments
-
-import torch
-import torch.nn.functional as F
-from torch import Tensor
+from typing import Literal, Optional, Tuple, Union
 
 InputMode = Literal["binary", "multiclass", "onehot", "auto"]
 Reduction = Union[None, Literal["mean", "sum"]]
@@ -153,22 +153,31 @@ def _metric_reduction(
 
     batch, channels = loss.shape
 
-    assert (
-        weights is None or ignore_index is None
-    ), "When setting weights, do not include ignore_index separately"
-
     if ignore_index is not None:
-        weights = [1.0 if i != ignore_index else 0.0 for i in range(channels)]
+        uni_weights = torch.Tensor([1.0 if i != ignore_index else 0.0 for i in range(channels)])
+        if weights is None:
+            weights = uni_weights
+        else:
+            weights = weights * uni_weights
 
-    if weights:
-        assert (
-            len(weights) == channels
-        ), f"Weights must match number of channels {len(weights)} != {channels}"
-
+    if weights is not None:
         if isinstance(weights, list):
             weights = torch.Tensor(weights)
 
-        weights = E.repeat(weights, "C -> B C", C=channels, B=batch)
+        # Identical weights for each item in the batch.
+        if len(weights.shape) == 1:
+            assert (
+                len(weights) == channels
+            ), f"Weights must match number of channels {len(weights)} != {channels}"
+            weights = E.repeat(weights, "C -> B C", C=channels, B=batch)
+        # Per batch item weights.
+        elif len(weights.shape) == 2:
+            assert (
+                weights.shape[1] == channels
+            ), f"Weights must match number of channels {weights.shape[1]} != {channels}"
+        else:
+            raise NotImplementedError("Haven't implemented weighting scheme when 3 dims.")
+
         loss *= weights.type(loss.dtype).to(loss.device)
 
     if batch_reduction == "sum":
