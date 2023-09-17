@@ -13,13 +13,11 @@ def run_exp(
     # Important imports, otherwise the processes will not be able to import the necessary modules
     sys.path.append('/storage/vbutoi/projects')
     sys.path.append('/storage/vbutoi/projects/ESE')
-
     # Set the visible gpu.
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
-    # Setup the experiment.
     exp = exp_class.from_config(config)
-    
+
     # Run the experiment.
     exp.run()
 

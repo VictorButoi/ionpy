@@ -1,11 +1,12 @@
-from typing import Optional, Union, Literal, Tuple
 from enum import Enum
+from typing import Literal, Optional, Tuple, Union
+
+import einops as E
+from pydantic import validate_arguments
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
-import einops as E
-from pydantic import validate_arguments
 
 InputMode = Literal["binary", "multiclass", "onehot", "auto"]
 Reduction = Union[None, Literal["mean", "sum"]]
@@ -21,16 +22,14 @@ def hard_max(x: Tensor):
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
-def _infer_mode(
-    y_pred: Tensor,
-    y_true: Tensor,
-) -> InputMode:
+def _infer_mode(y_pred: Tensor, y_true: Tensor,) -> InputMode:
     batch_size, num_classes = y_pred.shape[:2]
 
     if y_pred.shape == y_true.shape:
         return "binary" if num_classes == 1 else "onehot"
     else:
         return "multiclass"
+
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -41,10 +40,8 @@ def _inputs_as_onehot(
     from_logits: bool = False,
     discretize: bool = False,
 ) -> Tuple[Tensor, Tensor]:
-
     assert len(y_pred.shape) == 4, f"y_pred must have 4 dimensions, got {y_pred.shape}"
-    assert len(y_true.shape) == 4, f"y_true must have 3 dimensions, got {y_true.shape}"
-    
+    assert len(y_true.shape) == 4, f"y_true must have 4 dimensions, got {y_true.shape}"
     batch_size, num_classes = y_pred.shape[:2]
 
     if mode == "auto":
@@ -59,17 +56,21 @@ def _inputs_as_onehot(
         # extreme values 0 and 1
 
         if mode == "binary":
-            y_pred = F.logsigmoid(y_pred.float()).exp()
+            # y_pred = F.logsigmoid(y_pred.float()).exp()
+            y_pred = torch.sigmoid(y_pred.float())
         elif mode in ("multiclass", "onehot"):
-            y_pred = F.log_softmax(y_pred.float(), dim=1).exp()
+            # y_pred = F.log_softmax(y_pred.float(), dim=1).exp()
+            y_pred = torch.softmax(y_pred.float(), dim=1)
 
     if discretize:
         if mode == "binary":
             y_pred = torch.round(y_pred).clamp_min(0.0).clamp_max(1.0)
             y_true = torch.round(y_true).clamp_min(0.0).clamp_max(1.0)
-        else:
+        elif mode == "onehot":
             y_pred = hard_max(y_pred)
             y_true = hard_max(y_true)
+        elif mode == "multiclass":
+            y_pred = hard_max(y_pred)
 
     if mode == "binary":
         y_true = y_true.reshape(batch_size, 1, -1)
@@ -82,12 +83,11 @@ def _inputs_as_onehot(
     elif mode == "multiclass":
         y_pred = y_pred.reshape(batch_size, num_classes, -1)
         y_true = y_true.reshape(batch_size, -1)
-
-        # if y_true is not int64, convert to int64        
-        if y_true.dtype != torch.int64:
-            y_true = y_true.long()
-
-        y_true = F.one_hot(y_true, num_classes).permute(0, 2, 1)
+        if y_true.dtype != torch.long:
+            y_true_long = y_true.long()
+        else:
+            y_true_long = y_true
+        y_true = F.one_hot(y_true_long, num_classes).permute(0, 2, 1)
 
     assert y_pred.shape == y_true.shape
     return y_pred.float(), y_true.float()
@@ -101,6 +101,8 @@ def _inputs_as_longlabels(
     from_logits: bool = False,
     discretize: bool = False,
 ) -> Tuple[Tensor, Tensor]:
+    assert len(y_pred.shape) == 4, f"y_pred must have 4 dimensions, got {y_pred.shape}"
+    assert len(y_true.shape) == 4, f"y_true must have 4 dimensions, got {y_true.shape}"
 
     batch_size, num_classes = y_pred.shape[:2]
 
@@ -135,8 +137,6 @@ def _inputs_as_longlabels(
     return y_pred, y_true.long()
 
 
-
-
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def _metric_reduction(
     loss: Tensor,
@@ -158,10 +158,8 @@ def _metric_reduction(
     ), "When setting weights, do not include ignore_index separately"
 
     if ignore_index is not None:
-        assert channels != 1, "Cannot ignore index in binary classification."
-        assert ignore_index <= channels, "Cannot ignore index outside of channels." 
         weights = [1.0 if i != ignore_index else 0.0 for i in range(channels)]
-    
+
     if weights:
         assert (
             len(weights) == channels
@@ -169,24 +167,23 @@ def _metric_reduction(
 
         if isinstance(weights, list):
             weights = torch.Tensor(weights)
+
         weights = E.repeat(weights, "C -> B C", C=channels, B=batch)
         loss *= weights.type(loss.dtype).to(loss.device)
 
     if batch_reduction == "sum":
         loss = loss.sum(dim=0)
+
     elif batch_reduction == "mean":
         loss = loss.mean(dim=0)
 
     N = channels
     if ignore_index is not None and 0 <= ignore_index < N:
         N -= 1
-
     if reduction is None:
         return loss
-
     if reduction == "mean":
         return loss.sum(dim=-1) / N
-
     if reduction == "sum":
         return loss.sum(dim=-1)
 

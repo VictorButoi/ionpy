@@ -30,25 +30,36 @@ def dice_score(
 ) -> Tensor:
 
     y_pred, y_true = _inputs_as_onehot(
-        y_pred,
-        y_true,
-        mode=mode,
-        from_logits=from_logits,
-        discretize=True,
+        y_pred, 
+        y_true, 
+        mode=mode, 
+        from_logits=from_logits, 
+        discretize=True
     )
 
     intersection = torch.logical_and(y_pred == 1.0, y_true == 1.0).sum(dim=-1)
     cardinalities = (y_pred == 1.0).sum(dim=-1) + (y_true == 1.0).sum(dim=-1)
 
-    score = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
+    dice_scores = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
 
-    return _metric_reduction(
-        score,
+    score = _metric_reduction(
+        dice_scores,
         reduction=reduction,
         weights=weights,
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )
+
+    if score > 0.5:
+        print("dice score: ", score)
+        print("ypred: ", y_pred.shape)
+        print("ytrue: ", y_true.shape)
+        print("intersection: ", intersection)
+        print("cardinalties for ypred: ", (y_pred == 1.0).sum(dim=-1))
+        print("cardinalties for ytrue: ", (y_true == 1.0).sum(dim=-1))
+
+
+    return score
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -145,8 +156,12 @@ def soft_dice_score(
     ignore_index: Optional[int] = None,
     from_logits: bool = False,
 ) -> Tensor:
+    
     y_pred, y_true = _inputs_as_onehot(
-        y_pred, y_true, mode=mode, from_logits=from_logits
+        y_pred, 
+        y_true, 
+        mode=mode,
+        from_logits=from_logits
     )
     assert y_pred.shape == y_true.shape
 
@@ -157,15 +172,26 @@ def soft_dice_score(
     else:
         cardinalities = y_pred.sum(dim=-1) + y_true.sum(dim=-1)
 
-    score = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
-    return _metric_reduction(
-        score,
+    soft_dice_score = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
+    score = _metric_reduction(
+        soft_dice_score,
         reduction=reduction,
         weights=weights,
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )
+    
+    if score > 0.5:
+        print("dice score: ", score)
+        print("ypred: ", y_pred.shape)
+        print("ytrue: ", y_true.shape)
+        print("intersection: ", intersection)
+        print("cardinalties: ", cardinalities)
+        print("cardinalties for ypred: ", y_pred.sum(dim=-1))
+        print("cardinalties for ytrue: ", y_true.sum(dim=-1))
 
+    return score
+    
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def soft_jaccard_score(
