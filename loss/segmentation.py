@@ -1,10 +1,13 @@
-from typing import Optional, Union
-
+# torch imports
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 
+# random imports
+from typing import Optional, Union
 from pydantic import validate_arguments
 
+# local imports
 from .util import _loss_module_from_func
 from ..util.more_functools import partial
 from ..metrics.segmentation import soft_dice_score, soft_jaccard_score, pixel_mse
@@ -87,6 +90,84 @@ def soft_jaccard_loss(
     return loss
 
 
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
+def pixel_crossentropy_loss(
+    y_pred: Tensor,
+    y_true: Tensor,
+    mode: InputMode = "auto",
+    reduction: Reduction = "mean",
+    batch_reduction: Reduction = "mean",
+    weights: Optional[Union[Tensor, list]] = None,
+    ignore_index: Optional[int] = -100,
+    from_logits: bool = False,
+):
+    """One cross_entropy function to rule them all
+    ---
+    Pytorch has four CrossEntropy loss-functions
+        1. Binary CrossEntropy
+          - nn.BCELoss
+          - F.binary_cross_entropy
+        2. Sigmoid + Binary CrossEntropy (expects logits)
+          - nn.BCEWithLogitsLoss
+          - F.binary_cross_entropy_with_logits
+        3. Categorical
+          - nn.NLLLoss
+          - F.nll_loss
+        4. Softmax + Categorical (expects logits)
+          - nn.CrossEntropyLoss
+          - F.cross_entropy
+    """
+    batch_size, num_channels = y_pred.shape[:2]
+    if mode == "auto":
+        if y_pred.shape == y_true.shape:
+            mode = "binary" if num_channels == 1 else "onehot"
+        else:
+            mode = "multiclass"
+
+    if mode == "binary":
+        assert y_pred.shape == y_true.shape
+        assert ignore_index is None
+        assert weights is None
+
+        if from_logits:
+            loss = F.binary_cross_entropy_with_logits(y_pred, y_true, reduction="none")
+        else:
+            loss = F.binary_cross_entropy(y_pred, y_true, reduction="none")
+        loss = loss.squeeze(dim=1)
+
+    else:
+        if from_logits:
+            loss = F.cross_entropy(
+                y_pred,
+                y_true,
+                reduction="none",
+                weight=weights,
+                ignore_index=ignore_index,
+            )
+        else:
+            loss = F.nll_loss(
+                y_pred,
+                y_true,
+                reduction="none",
+                weight=weights,
+                ignore_index=ignore_index,
+            )
+
+    # Channels have been collapsed
+    spatial_dims = list(range(1, len(y_pred.shape) - 1))
+    if reduction == "mean":
+        loss = loss.mean(dim=spatial_dims)
+    if reduction == "sum":
+        loss = loss.sum(dim=spatial_dims)
+
+    if batch_reduction == "mean":
+        loss = loss.mean(dim=0)
+    if batch_reduction == "sum":
+        loss = loss.sum(dim=0)
+
+    return loss
+
+
 pixel_mse_loss = pixel_mse
 binary_soft_dice_loss = partial(soft_dice_loss, mode="binary")
 binary_soft_jaccard_loss = partial(soft_jaccard_loss, mode="binary")
@@ -94,3 +175,4 @@ binary_soft_jaccard_loss = partial(soft_jaccard_loss, mode="binary")
 SoftDiceLoss = _loss_module_from_func("SoftDiceLoss", soft_dice_loss)
 SoftJaccardLoss = _loss_module_from_func("SoftJaccardLoss", soft_jaccard_loss)
 PixelMSELoss = _loss_module_from_func("PixelMSELoss", pixel_mse_loss)
+PixelCELoss = _loss_module_from_func("PixelCELoss", pixel_crossentropy_loss)
