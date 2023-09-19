@@ -57,6 +57,7 @@ def dice_score(
         dice_scores,
         reduction=reduction,
         weights=weights,
+        ignore_empty_labels=ignore_empty_labels,
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )
@@ -154,6 +155,7 @@ def soft_dice_score(
     square_denom: bool = True,
     reduction: Reduction = "mean",
     batch_reduction: Reduction = "mean",
+    ignore_empty_labels: bool = False,
     weights: Optional[Union[Tensor, List]] = None,
     ignore_index: Optional[int] = None,
     from_logits: bool = False,
@@ -170,15 +172,27 @@ def soft_dice_score(
     intersection = torch.sum(y_pred * y_true, dim=-1)
 
     if square_denom:
-        cardinalities = y_pred.square().sum(dim=-1) + y_true.square().sum(dim=-1)
+        pred_amounts = y_pred.square().sum(dim=-1)
+        true_amounts = y_true.square().sum(dim=-1)
     else:
-        cardinalities = y_pred.sum(dim=-1) + y_true.sum(dim=-1)
-
+        pred_amounts = y_pred.sum(dim=-1)
+        true_amounts = y_true.sum(dim=-1)
+    
+    cardinalities = pred_amounts + true_amounts
     soft_dice_score = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
+
+    if ignore_empty_labels:
+        existing_label = (true_amounts > 0).float().cpu()
+        if weights is None:
+            weights = existing_label
+        else:
+            weights = weights * existing_label
+
     score = _metric_reduction(
         soft_dice_score,
         reduction=reduction,
         weights=weights,
+        ignore_empty_labels=ignore_empty_labels,
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )

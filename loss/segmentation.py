@@ -1,4 +1,4 @@
-from typing import Optional, Union, Literal
+from typing import Optional, Union
 
 import torch
 from torch import Tensor
@@ -20,6 +20,7 @@ def soft_dice_loss(
     batch_reduction: Reduction = "mean",
     weights: Optional[Union[Tensor, list]] = None,
     ignore_index: Optional[int] = None,
+    ignore_empty_labels: bool = False,
     from_logits: bool = False,
     smooth: float = 1e-7,
     eps: float = 1e-7,
@@ -34,6 +35,7 @@ def soft_dice_loss(
         reduction=reduction,
         batch_reduction=batch_reduction,
         weights=weights,
+        ignore_empty_labels=ignore_empty_labels,
         ignore_index=ignore_index,
         from_logits=from_logits,
         smooth=smooth,
@@ -58,7 +60,6 @@ def soft_jaccard_loss(
     batch_reduction: Reduction = "mean",
     weights: Optional[Union[Tensor, list]] = None,
     ignore_index: Optional[int] = None,
-    from_logits: bool = False,
     smooth: float = 1e-7,
     eps: float = 1e-7,
     square_denom: bool = True,

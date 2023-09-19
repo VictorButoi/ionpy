@@ -142,6 +142,7 @@ def _metric_reduction(
     loss: Tensor,
     reduction: Reduction = "mean",
     batch_reduction: Reduction = "mean",
+    ignore_empty_labels: bool = False,
     weights: Optional[Union[Tensor, list]] = None,
     ignore_index: Optional[int] = None,
 ) -> Tensor:
@@ -154,6 +155,7 @@ def _metric_reduction(
     batch, channels = loss.shape
 
     if ignore_index is not None:
+        assert 0 <= ignore_index < channels, "ignore_index must be in [0, channels)"
         uni_weights = torch.Tensor([1.0 if i != ignore_index else 0.0 for i in range(channels)])
         if weights is None:
             weights = uni_weights
@@ -163,7 +165,6 @@ def _metric_reduction(
     if weights is not None:
         if isinstance(weights, list):
             weights = torch.Tensor(weights)
-
         # Identical weights for each item in the batch.
         if len(weights.shape) == 1:
             assert (
@@ -177,24 +178,35 @@ def _metric_reduction(
             ), f"Weights must match number of channels {weights.shape[1]} != {channels}"
         else:
             raise NotImplementedError("Haven't implemented weighting scheme when 3 dims.")
+    else:
+        weights = torch.ones(batch, channels)
 
-        loss *= weights.type(loss.dtype).to(loss.device)
+    # Apply weights.
+    loss *= weights.type(loss.dtype).to(loss.device)
 
-    if batch_reduction == "sum":
-        loss = loss.sum(dim=0)
+    # Determine the number of classes to reduce over.
+    if ignore_empty_labels:
+        N = (weights.sum(dim=1) > 0).float().to(loss.device)
+    else:
+        N = channels
+        if ignore_index is not None:
+            N -= 1
 
-    elif batch_reduction == "mean":
-        loss = loss.mean(dim=0)
-
-    N = channels
-    if ignore_index is not None and 0 <= ignore_index < N:
-        N -= 1
-    if reduction is None:
-        return loss
+    # Reduce over the classes.
     if reduction == "mean":
-        return loss.sum(dim=-1) / N
-    if reduction == "sum":
-        return loss.sum(dim=-1)
+        loss = (1 / N) * loss.sum(dim=-1)
+    elif reduction == "sum":
+        loss = loss.sum(dim=-1)
+    else:
+        raise ValueError(f"Unknown reduction {reduction}")
+
+    # Reduce over the examples in the batch.
+    if batch_reduction == "sum":
+        return loss.sum(dim=0)
+    elif batch_reduction == "mean":
+        return loss.mean(dim=0)
+    else:
+        return loss
 
 
 def batch_channel_flatten(x: Tensor) -> Tensor:
