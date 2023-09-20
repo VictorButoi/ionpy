@@ -101,9 +101,6 @@ def _inputs_as_longlabels(
     from_logits: bool = False,
     discretize: bool = False,
 ) -> Tuple[Tensor, Tensor]:
-    assert len(y_pred.shape) == 4, f"y_pred must have 4 dimensions, got {y_pred.shape}"
-    assert len(y_true.shape) == 4, f"y_true must have 4 dimensions, got {y_true.shape}"
-
     batch_size, num_classes = y_pred.shape[:2]
 
     if mode == "auto":
