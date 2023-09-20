@@ -1,16 +1,18 @@
 # misc imports
 import os
+import sys
 import pathlib
 import submitit
-import sys
 from typing import List, Any, Union
+from pydantic import validate_arguments
 
 # ionpy imports
 from ionpy.util import Config
 
 
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
 def run_exp(
-    exp_class,
+    exp_class: Any,
     exp_object: Union[pathlib.Path, Config],
     gpu: int = '0'
 ):
@@ -88,12 +90,12 @@ class SliteRunner:
             # Submit the job
             job = self.executor.submit(
                 run_exp,
-                exp_obj=exp_obj,
                 exp_class=self.exp_class,
+                exp_object=exp_obj,
                 gpu=self.avail_gpus[c_idx] 
             )
 
-            print(f"Submitted job id:{job.job_id}.")
+            print(f"Submitted job id: {job.job_id}.")
             self.jobs.append(job)
             local_job_list.append(job)
         
