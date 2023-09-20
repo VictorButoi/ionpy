@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 from .runner import SliteRunner
 import multiprocessing
 
@@ -8,9 +8,12 @@ def submit_exps(
     exp_name: str,
     exp_class: Any,
     available_gpus: List[str],
-    config_list: List[Any]
+    config_list: Optional[List[Any]] = None,
+    exp_path_list: Optional[List[Any]] = None,
 ):
     assert exp_name != "debug", "Cannot launch debug jobs large-scale."
+    assert not (config_list is None and exp_path_list is None), "Must provide either a list of configs or a list of experiment paths."
+    assert not (config_list is not None and exp_path_list is not None), "Cannot provide both a list of configs and a list of experiment paths."
 
     def launch_training():
         # Create a runner
@@ -20,9 +23,11 @@ def submit_exps(
             available_gpus=available_gpus,
             exp_name=exp_name
         )
-
         # Submit the experiments
-        runner.submit_exps(config_list)
+        if config_list is not None:
+            runner.submit_exps(config_list)
+        elif exp_path_list is not None:
+            runner.submit_exps(exp_path_list)
 
     # Launch the training
     process = multiprocessing.Process(target=launch_training)

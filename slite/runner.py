@@ -1,22 +1,31 @@
 # misc imports
 import os
+import pathlib
 import submitit
 import sys
-from typing import List, Any
+from typing import List, Any, Union
+
+# ionpy imports
+from ionpy.util import Config
 
 
 def run_exp(
-    config,
     exp_class,
-    gpu
+    exp_object: Union[pathlib.Path, Config],
+    gpu: int = '0'
 ):
     # Important imports, otherwise the processes will not be able to import the necessary modules
     sys.path.append('/storage/vbutoi/projects')
     sys.path.append('/storage/vbutoi/projects/ESE')
+
     # Set the visible gpu.
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
 
-    exp = exp_class.from_config(config)
+    # Get the experiment class, either fresh or from a path.
+    if isinstance(exp_object, Config): 
+       exp = exp_class.from_config(exp_object)
+    else:
+        exp = exp_class(exp_object)
 
     # Run the experiment.
     exp.run()
@@ -64,26 +73,27 @@ class SliteRunner:
 
     def submit_exps(
         self,
-        cfg_list 
+        exp_objects: List[Any] = None
     ):
         assert self.exp_name is not None, "Must set exp_name before running experiment."
-        assert len(cfg_list) <= len(self.avail_gpus),\
-            "Currently, must have same number of configs as available gpus."
+        # exp_objects is a list of either configs or exp_paths
+        assert len(exp_objects) <= len(self.avail_gpus),\
+                "Currently, must have same number of experiments as available gpus."
 
         # Keep track of the local jobs
         local_job_list = []
 
-        for c_idx, cfg in enumerate(cfg_list):
+        for c_idx, exp_obj in enumerate(exp_objects):
 
             # Submit the job
             job = self.executor.submit(
                 run_exp,
-                config=cfg,
+                exp_obj=exp_obj,
                 exp_class=self.exp_class,
                 gpu=self.avail_gpus[c_idx] 
             )
 
-            print(f"Submitted job {job.job_id}.")
+            print(f"Submitted job id:{job.job_id}.")
             self.jobs.append(job)
             local_job_list.append(job)
         

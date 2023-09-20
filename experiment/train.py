@@ -54,8 +54,9 @@ class TrainExperiment(BaseExperiment):
 
     def build_optim(self):
         optim_cfg = self.config["optim"].to_dict()
-        # TODO add lr_scheduler support
-        # self.lr_scheduler = eval_config(opt_cfg.pop('lr_scheduler', None)
+
+        if 'lr_scheduler' in optim_cfg:
+            self.lr_scheduler = eval_config(optim_cfg.pop('lr_scheduler', None))
 
         if "weight_decay" in optim_cfg:
             optim_cfg["params"] = split_param_groups_by_weight_decay(
@@ -187,17 +188,11 @@ class TrainExperiment(BaseExperiment):
     def run_phase(self, phase, epoch):
 
         dl = getattr(self, f"{phase}_dl")
-
         grad_enabled = phase == "train"
 
         # Check if augmentations are enabled
-        if "augmentations" in self.config:
-            aug_cfg = self.config["augmentations"]
-        else:
-            aug_cfg = None
-
+        aug_cfg = None if "augmentations" not in self.config else self.config["augmentations"] 
         augmentation = (phase == "train") and (aug_cfg is not None)
-
 
         self.model.train(grad_enabled)  # For dropout, batchnorm, &c
 

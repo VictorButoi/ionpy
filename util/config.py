@@ -294,9 +294,18 @@ class Config(HDict):
     @newobj
     def update(self, others):
         item = super()
-        for other in others:
-            item.update(other)
+        if isinstance(others, dict):
+            item.update(others)
+        else:
+            for other in others:
+                item.update(other)
         return item
+    
+    @staticmethod
+    def load(file):
+        with open(file, "r") as f:
+            cfg = yaml.safe_load(f)
+        return Config(cfg)
 
 
 class ImmutableConfig(HDict):

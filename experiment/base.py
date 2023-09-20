@@ -69,7 +69,6 @@ class BaseExperiment:
         path = root / uuid
         metadata = {"create_time": create_time, "nonce": nonce, "digest": digest}
         autosave(metadata, path / "metadata.json")
-
         autosave(config, path / "config.yml")
         return cls(str(path.absolute()))
 
