@@ -81,6 +81,21 @@ def pixel_accuracy(
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
+def pixel_precision(
+    y_pred: Tensor,
+    y_true: Tensor,
+    mode: InputMode = "auto",
+    from_logits: bool = False,
+) -> Tensor:
+
+    y_pred, y_true = _inputs_as_longlabels(
+        y_pred, y_true, mode, from_logits=from_logits, discretize=True
+    )
+    correct = y_pred == y_true
+    return correct.float().mean()
+
+
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
 def balanced_pixel_accuracy(
     y_pred: Tensor,
     y_true: Tensor,
