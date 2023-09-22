@@ -91,7 +91,11 @@ def pixel_precision(
     y_pred, y_true = _inputs_as_longlabels(
         y_pred, y_true, mode, from_logits=from_logits, discretize=True
     )
-    correct = y_pred == y_true
+
+    # Get tensor of ones like y_pred
+    one_y_pred = torch.ones_like(y_pred)
+
+    correct = (one_y_pred == y_true)
     return correct.float().mean()
 
 
