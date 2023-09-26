@@ -95,15 +95,8 @@ def get_connected_components(
     # Label the connected components
     labeled_array, num_features = label(binary_array)
 
-    connected_components = []
-
-    for i in range(1, num_features + 1):
-        # Extract the i-th component
-        component_array = (labeled_array == i).astype(int)
-        
-        # Convert the numpy array back to torch tensor
-        component_tensor = torch.from_numpy(component_array).bool()
-        connected_components.append(component_tensor)
-
-    return connected_components
+    if num_features > 0:
+        return [torch.from_numpy(labeled_array == i).bool() for i in range(1, num_features + 1)]
+    else:
+        return []
 
