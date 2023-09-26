@@ -94,8 +94,8 @@ def pixel_precision(
 
     # Get tensor of ones like y_pred
     one_y_pred = torch.ones_like(y_pred)
-
     correct = (one_y_pred == y_true)
+
     return correct.float().mean()
 
 
