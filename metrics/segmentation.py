@@ -215,15 +215,6 @@ def soft_dice_score(
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )
-    
-    if score > 0.5:
-        print("dice score: ", score)
-        print("ypred: ", y_pred.shape)
-        print("ytrue: ", y_true.shape)
-        print("intersection: ", intersection)
-        print("cardinalties: ", cardinalities)
-        print("cardinalties for ypred: ", y_pred.sum(dim=-1))
-        print("cardinalties for ytrue: ", y_true.sum(dim=-1))
 
     return score
     
