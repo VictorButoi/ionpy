@@ -4,10 +4,12 @@ from ionpy.util.validation import validate_arguments_init
 
 # misc imports
 from typing import List
+from pydantic import validate_arguments
+import torch.nn.functional as F
 from scipy.ndimage.measurements import label
 
 
-@validate_arguments_init
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
 def dfs(
     i: int,
     j: int,
@@ -43,8 +45,7 @@ def dfs(
     return torch.Tensor(component).long()
 
 
-
-@validate_arguments_init
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
 def slow_get_connected_components(
     array: torch.Tensor,
     visited: torch.Tensor = None,
@@ -78,10 +79,11 @@ def slow_get_connected_components(
     return connected_components
 
 
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
 @validate_arguments_init
 def get_connected_components(
     binary_tensor: torch.Tensor
-) -> List[torch.Tensor]:
+) -> torch.Tensor:
     """
     Returns a list of images with the same shape as label, where each image 
     corresponds to a binary mask for each connected commponent in label.
@@ -95,8 +97,13 @@ def get_connected_components(
     # Label the connected components
     labeled_array, num_features = label(binary_array)
 
+    # Get the connected components as separate labels.
     if num_features > 0:
-        return [torch.from_numpy(labeled_array == i).bool() for i in range(1, num_features + 1)]
+        index_labeled_array = torch.from_numpy(labeled_array).long()
+        # Get each island as its own slice.
+        island_block = F.one_hot(index_labeled_array, num_features + 1).movedim(-1, 0)
+        # Cut off the zero-island
+        nonzero_islands = island_block[1:, ...].bool()
+        return nonzero_islands
     else:
-        return []
-
+        return torch.Tensor([])
