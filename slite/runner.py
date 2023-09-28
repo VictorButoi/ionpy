@@ -3,7 +3,7 @@ import os
 import sys
 import pathlib
 import submitit
-from typing import List, Any, Union
+from typing import List, Any, Union, Optional
 from pydantic import validate_arguments
 
 # ionpy imports
@@ -33,14 +33,31 @@ def run_exp(
     exp.run()
 
 
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
+def run_jobs(
+    job_func: Any,
+    cfg_list: List[Config],
+    gpu: int
+):
+    # Important imports, otherwise the processes will not be able to import the necessary modules
+    sys.path.append('/storage/vbutoi/projects')
+    sys.path.append('/storage/vbutoi/projects/ESE')
+
+    # Set the visible gpu.
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+
+    for cfg in cfg_list:
+        job_func(cfg)
+
+
 class SliteRunner:
 
     def __init__(
             self, 
             project: str,
-            exp_class: Any,
             available_gpus: List[str],
-            exp_name: str = None, 
+            exp_class: Optional[Any] = None,
+            exp_name: Optional[str] = None, 
             log_root_dir: str='/storage/vbutoi/scratch'
             ):
 
@@ -95,6 +112,36 @@ class SliteRunner:
                 gpu=self.avail_gpus[c_idx] 
             )
 
+            print(f"Submitted job id: {job.job_id}.")
+            self.jobs.append(job)
+            local_job_list.append(job)
+        
+        return local_job_list
+    
+    def submit_jobs(
+        self,
+        job_func: Any,
+        job_cfgs: List[Any] = None
+    ):
+        assert self.exp_name is not None, "Must set exp_name before running experiment."
+
+        # Keep track of the local jobs
+        local_job_list = []
+
+        # Chunk the job_cfgs list in len(self.avail_gpus) many lists of job_cfgs
+        # as uniformly distributed as possible.
+        job_chunks = {gpu: [] for gpu in self.avail_gpus}
+        for j_idx, cfg in enumerate(job_cfgs):
+            job_chunks[str(j_idx % len(self.avail_gpus))].append(cfg)
+
+        for gpu in self.avail_gpus:
+            # Submit the job
+            job = self.executor.submit(
+                run_jobs,
+                job_func=job_func,
+                cfg_list=job_chunks[gpu],
+                gpu=gpu
+            )
             print(f"Submitted job id: {job.job_id}.")
             self.jobs.append(job)
             local_job_list.append(job)
