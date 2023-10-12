@@ -130,11 +130,14 @@ class SliteRunner:
 
         # Chunk the job_cfgs list in len(self.avail_gpus) many lists of job_cfgs
         # as uniformly distributed as possible.
-        job_chunks = {gpu: [] for gpu in self.avail_gpus}
-        for j_idx, cfg in enumerate(job_cfgs):
-            job_chunks[str(j_idx % len(self.avail_gpus))].append(cfg)
+        num_used_gpus = min(len(job_cfgs), len(self.avail_gpus))
+        used_avail_gpus = self.avail_gpus[:num_used_gpus]
 
-        for gpu in self.avail_gpus:
+        job_chunks = {gpu: [] for gpu in used_avail_gpus}
+        for j_idx, cfg in enumerate(job_cfgs):
+            job_chunks[str(j_idx % len(used_avail_gpus))].append(cfg)
+
+        for gpu in used_avail_gpus:
             # Submit the job
             job = self.executor.submit(
                 run_jobs,
