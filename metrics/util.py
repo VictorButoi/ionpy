@@ -198,12 +198,12 @@ def _metric_reduction(
     else:
         weights = torch.ones(batch, channels)
 
-    # Apply weights.
+    # Mask out the loss by the weights.
     loss *= weights.type(loss.dtype).to(loss.device)
 
     # Determine the number of classes to reduce over.
     if ignore_empty_labels:
-        N = (weights.sum(dim=1) > 0).float().to(loss.device)
+        N = weights.sum(dim=1).float().to(loss.device)
     else:
         N = channels
         if ignore_index is not None:
@@ -211,9 +211,9 @@ def _metric_reduction(
 
     # Reduce over the classes.
     if reduction == "mean":
-        loss = (1 / N) * loss.sum(dim=-1)
+        loss = (1 / N) * loss.sum(dim=1)
     elif reduction == "sum":
-        loss = loss.sum(dim=-1)
+        loss = loss.sum(dim=1)
     else:
         raise ValueError(f"Unknown reduction {reduction}")
 

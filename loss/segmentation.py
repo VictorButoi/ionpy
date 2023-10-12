@@ -45,6 +45,7 @@ def soft_dice_loss(
         eps=eps,
         square_denom=square_denom,
     )
+    assert 1 >= score >= 0, f"Soft Dice score must be between 0 and 1, got {score}."
 
     if log_loss:
         loss = -torch.log(score.clamp_min(eps))

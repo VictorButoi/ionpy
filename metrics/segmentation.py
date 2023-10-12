@@ -209,6 +209,7 @@ def soft_dice_score(
     cardinalities = pred_amounts + true_amounts
     soft_dice_score = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
 
+    # If ignore_empty_labels is True, then we want to ignore labels that have no pixels in the ground truth.
     if ignore_empty_labels:
         existing_label = (true_amounts > 0).float().cpu()
         if weights is None:
