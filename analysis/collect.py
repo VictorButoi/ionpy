@@ -2,6 +2,7 @@ import collections
 import getpass
 import itertools
 import json
+import torch
 import pathlib
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from fnmatch import fnmatch
@@ -274,7 +275,7 @@ class ResultsLoader:
         exp_class, 
         checkpoint,
         metric="val-dice_score",
-        device="cuda"
+        device="cuda:0"
         ):
 
         phase, score = metric.split("-")
@@ -285,8 +286,10 @@ class ResultsLoader:
 
         if checkpoint is not None:
             loaded_exp.load(tag=checkpoint)
-            
-        if device == "cuda":
+        
+        # Set the device
+        loaded_exp.device = torch.device(device)
+        if "cuda" in device:
             loaded_exp.to_device()
 
         # Place the logs in the experiment, will be hand later
