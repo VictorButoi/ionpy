@@ -270,12 +270,12 @@ class ResultsLoader:
         return concat_with_attrs(data_dfs, ignore_index=True)
 
     @staticmethod
-    def get_experiment(
+    def get_best_experiment(
         df, 
         exp_class, 
-        checkpoint,
+        device="cuda",
+        checkpoint="max-val-dice_score",
         metric="val-dice_score",
-        device="cuda:0"
         ):
 
         phase, score = metric.split("-")
@@ -289,7 +289,7 @@ class ResultsLoader:
         
         # Set the device
         loaded_exp.device = torch.device(device)
-        if "cuda" in device:
+        if device == "cuda":
             loaded_exp.to_device()
 
         # Place the logs in the experiment, will be hand later
