@@ -216,7 +216,7 @@ def soft_dice_score(
             weights = existing_label
         else:
             weights = weights * existing_label
-
+    
     score = _metric_reduction(
         soft_dice_score,
         reduction=reduction,

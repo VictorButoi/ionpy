@@ -1,14 +1,12 @@
-import itertools
+# misc imports
+import torch
+import numpy as np
 from abc import abstractmethod
 from typing import Union, Iterable
-from heapq import heappop, heappush
-from collections import defaultdict
 
-import numpy as np
-import torch
-
+# Define some useful types
 Numeric = Union[np.ndarray, torch.Tensor, int, float]
-Numerics = Union[Iterable[Numeric]]
+Numerics = Iterable[Numeric]
 
 
 class Meter:
@@ -160,14 +158,12 @@ class StatsMeter(Meter):
             mu = n1 / n * mu1 + n2 / n * mu2
             S = (S1 + n1 * mu1 * mu1) + (S2 + n2 * mu2 * mu2) - n * mu * mu
             return StatsMeter.from_raw_values(n, mu, S)
+
         if isinstance(other, (int, float)):
             # Add a fixed amount to all values. Only changes the mean
             return StatsMeter.from_raw_values(self.n, self.mean + other, self.S)
         else:
             raise TypeError("Can only add other groups or numbers")
-
-    def __sub__(self, other):
-        raise NotImplementedError
 
     def __mul__(self, k: Union[float, int]) -> "StatsMeter":
         # Multiply all values seen by some constant
@@ -218,71 +214,3 @@ class MeterDict(dict):
 
     def add(self, label, value):
         self[label].add(value)
-
-
-class MedianMeter(Meter):
-    def __init__(self, iterable: Iterable[float] = None):
-        self.upper = []
-        self.lower = []
-        super().__init__(iterable)
-
-    def add(self, datum: float):
-        if len(self.lower) == 0 or datum <= -self.lower[0]:
-            heappush(self.lower, -datum)
-        else:
-            heappush(self.upper, datum)
-        if len(self.upper) > len(self.lower) + 1:
-            heappush(self.lower, -heappop(self.upper))
-        elif len(self.lower) > len(self.upper) + 1:
-            heappush(self.upper, -heappop(self.lower))
-
-    @property
-    def median(self) -> float:
-        if len(self.upper) == len(self.lower):
-            return (self.upper[0] - self.lower[0]) / 2
-        elif len(self.upper) > len(self.lower):
-            return self.upper[0]
-        else:
-            return -self.lower[0]
-
-    @property
-    def mad(self) -> float:
-        m = self.median
-        return np.median([abs(m - x) for x in itertools.chain(self.upper, self.lower)])
-
-    def asdict(self) -> dict:
-        return {"median": self.median, "mad": self.mad}
-
-
-# import distogram
-
-
-# class DistMeter(Meter):
-#     def __init__(self, iterable: Iterable[Numeric] = None, bin_count: int = 256):
-#         self.bin_count = bin_count
-#         self.h = distogram.Distogram(bin_count=bin_count)
-#         super().__init__(iterable)
-
-#     def add(self, datum: Numeric):
-#         distogram.update(self.h, datum)
-
-#     def addN(self, iterable: Iterable[Numeric]):
-#         if isinstance(iterable, (np.ndarray, torch.Tensor)):
-#             iterable = iterable.flatten()
-#             for i in iterable:
-#                 distogram.update(self.h, i.item())
-#         else:
-#             for i in iterable:
-#                 distogram.update(self.h, i)
-
-#     def pdf(self, bin_count=None):
-#         y, x = distogram.histogram(self.h, bin_count=bin_count or self.bin_count)
-#         x = np.array(x)
-#         y = np.array(y)
-#         x = (x[1:] + x[:-1]) / 2
-#         return x, y
-
-#     def cdf(self, bin_count=None):
-#         y = np.linspace(0, 1, bin_count or self.bin_count)
-#         x = np.array([distogram.quantile(self.h, q) for q in y])
-#         return x, y
