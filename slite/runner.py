@@ -135,7 +135,7 @@ class SliteRunner:
 
         job_chunks = {gpu: [] for gpu in used_avail_gpus}
         for j_idx, cfg in enumerate(job_cfgs):
-            job_chunks[str(j_idx % len(used_avail_gpus))].append(cfg)
+            job_chunks[str(used_avail_gpus[j_idx % len(used_avail_gpus)])].append(cfg)
 
         for gpu in used_avail_gpus:
             # Submit the job

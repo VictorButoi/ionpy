@@ -188,8 +188,7 @@ class StatsMeter(Meter):
 
 
 class MeterDict(dict):
-    def __init__(self, meter_type=StatsMeter):
-        self._meter_type = meter_type
+    def __init__(self):
         super().__init__()
 
     def update(self, data):
@@ -203,7 +202,7 @@ class MeterDict(dict):
 
     def __getitem__(self, key):
         if key not in self:
-            super().__setitem__(key, self._meter_type())
+            super().__setitem__(key, StatsMeter)
         return super().__getitem__(key)
 
     def collect(self, attr):

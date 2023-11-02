@@ -45,7 +45,7 @@ def submit_jobs(
     exp_name: str,
     job_func: Any,
     config_list: List[Any],
-    available_gpus: List[str] = ["0", "1", "2", "3"]
+    available_gpus: List[str]
 ):
     assert exp_name != "debug", "Cannot launch debug jobs large-scale."
 
