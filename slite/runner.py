@@ -3,7 +3,7 @@ import os
 import sys
 import pathlib
 import submitit
-from typing import List, Any, Union, Optional
+from typing import List, Any, Union, Optional, Literal
 from pydantic import validate_arguments
 
 # ionpy imports
@@ -58,12 +58,14 @@ class SliteRunner:
             available_gpus: List[str],
             exp_class: Optional[Any] = None,
             exp_name: Optional[str] = None, 
+            job_mode: Optional[Literal["training", "inference"]] = None,
             log_root_dir: str='/storage/vbutoi/scratch'
             ):
 
         # Configure Submitit object
         self.project_name = project 
         self.exp_name = exp_name
+        self.job_mode = job_mode
         self.log_root_dir = log_root_dir
         self.avail_gpus = available_gpus
         self.exp_class = exp_class 
@@ -77,7 +79,7 @@ class SliteRunner:
     
     def init_executor(self):
         # Create submitit executor
-        submitit_root = f"{self.log_root_dir}/{self.project_name}/{self.exp_name}/submitit"
+        submitit_root = f"{self.log_root_dir}/{self.project_name}/{self.exp_name}/{self.job_mode}/submitit"
 
         # Setup the excutor parameters
         self.executor = submitit.LocalExecutor(folder=submitit_root)

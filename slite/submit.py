@@ -1,7 +1,7 @@
 # misc imports
 import multiprocessing
 from pydantic import validate_arguments
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Literal
 
 # local imports
 from .runner import SliteRunner
@@ -43,6 +43,7 @@ def submit_exps(
 def submit_jobs(
     project: str,
     exp_name: str,
+    job_mode: Literal["training", "inference"],
     job_func: Any,
     config_list: List[Any],
     available_gpus: List[str]
@@ -54,7 +55,8 @@ def submit_jobs(
         runner = SliteRunner(
             project=project,
             available_gpus=available_gpus,
-            exp_name=exp_name
+            exp_name=exp_name,
+            job_mode=job_mode
         )
         # Submit the experiments
         runner.submit_jobs(job_func, config_list)
