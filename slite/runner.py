@@ -79,7 +79,7 @@ class SliteRunner:
     
     def init_executor(self):
         # Create submitit executor
-        submitit_root = f"{self.log_root_dir}/{self.project_name}/{self.exp_name}/{self.job_mode}/submitit"
+        submitit_root = f"{self.log_root_dir}/{self.project_name}/{self.job_mode}/{self.exp_name}/submitit"
 
         # Setup the excutor parameters
         self.executor = submitit.LocalExecutor(folder=submitit_root)
