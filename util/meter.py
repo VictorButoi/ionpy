@@ -46,21 +46,23 @@ class StatsMeter(Meter):
         self.S: Numeric = 0.0
         super().__init__(iterable)
 
-    def add(self, datum: Numeric, n = 1):
+    def add(self, datum: Numeric, weight = 1.0):
         """Add a single datum
 
         Internals are updated using Welford's method
 
         Arguments:
             datum  -- Numerical object.
-            n -- Number of samples (with no variance assumed) datum represents.
+            weight -- Weight of the datum.
         """
-        self.n += n 
-        delta = datum - self.mean
-        # Mk = Mk-1+ (xk – Mk-1)/k
-        self.mean += delta / self.n
-        # Sk = Sk-1 + (xk – Mk-1)*(xk – Mk).
-        self.S += delta * (datum - self.mean)
+        old_mean = self.mean
+        old_n = self.n
+        # Update the sample mean.
+        self.mean = ((weight * datum) + (old_n * old_mean)) / (weight + old_n)
+        # Update the sample sum of squares.
+        self.S += weight * (datum - old_mean) * (datum - self.mean)
+        # Update the number of samples.
+        self.n = old_n + weight 
         
     def addN(self, iterable: Numerics, batch: bool = False):
         """Add N data to the stats
