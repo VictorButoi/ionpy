@@ -41,12 +41,16 @@ class StatsMeter(Meter):
         Keyword Arguments:
             iterable {[iterable} -- Values to initialize (default: {None})
         """
-        self.n: float = 0
+        self.n = 0
         self.mean: Numeric = 0.0
         self.S: Numeric = 0.0
         super().__init__(iterable)
 
-    def add(self, datum: Numeric, n: float = 1):
+    def verify_meter(self):
+        assert self.S >= 0, f"Variance must be non-negative, got {self.S}."
+        assert self.n >= 0, f"Number of samples must be non-negative, got {self.n}."
+
+    def add(self, datum: Numeric, n = 1):
         """Add a single datum
 
         Internals are updated using Welford's method
@@ -61,7 +65,9 @@ class StatsMeter(Meter):
         self.mean += delta / self.n
         # Sk = Sk-1 + (xk – Mk-1)*(xk – Mk).
         self.S += delta * (datum - self.mean)
-
+        # update check:
+        self.verify_meter()
+        
     def addN(self, iterable: Numerics, batch: bool = False):
         """Add N data to the stats
 
@@ -101,14 +107,17 @@ class StatsMeter(Meter):
     @property
     def variance(self) -> Numeric:
         # For 2 ≤ k ≤ n, the kth estimate of the variance is s2 = Sk/(k – 1).
+        assert self.S >= 0, f"Sum of squares must be non-negative, got {self.S}."
+        assert self.n >= 0, f"Num samples must be non-negtative, got {self.n}."
         return self.S / self.n
 
     @property
     def std(self) -> Numeric:
+        assert self.variance >= 0, f"Variance must be positive (or zero), got {self.variance}."
         return np.sqrt(self.variance)
 
     @staticmethod
-    def from_values(n: float, mean: float, std: float) -> "StatsMeter":
+    def from_values(n: int, mean: float, std: float) -> "StatsMeter":
         stats = StatsMeter()
         stats.n = n
         stats.mean = mean
@@ -116,7 +125,7 @@ class StatsMeter(Meter):
         return stats
 
     @staticmethod
-    def from_raw_values(n: float, mean: float, S: float) -> "StatsMeter":
+    def from_raw_values(n: int, mean: float, S: float) -> "StatsMeter":
         stats = StatsMeter()
         stats.n = n
         stats.mean = mean
