@@ -57,7 +57,7 @@ class StatsMeter(Meter):
 
         Arguments:
             datum  -- Numerical object.
-            amount -- Weight of the sample in the running stats.
+            n -- Number of samples (with no variance assumed) datum represents.
         """
         self.n += n 
         delta = datum - self.mean
