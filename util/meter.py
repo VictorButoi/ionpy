@@ -57,12 +57,16 @@ class StatsMeter(Meter):
         """
         old_mean = self.mean
         old_n = self.n
+        # Update the number of samples.
+        self.n = old_n + weight 
         # Update the sample mean.
         self.mean = ((weight * datum) + (old_n * old_mean)) / (weight + old_n)
         # Update the sample sum of squares.
-        self.S += weight * (datum - old_mean) * (datum - self.mean)
-        # Update the number of samples.
-        self.n = old_n + weight 
+        if weight == 1:
+            self.S = self.S + (datum - old_mean) * (datum - self.mean)
+        else:
+            # S = (S1 + n1 * mu1 * mu1) + (S2 + n2 * mu2 * mu2) - n * mu * mu
+            self.S = (self.S + old_n * old_mean**2) + (0 + weight * datum**2) - (self.n * self.mean**2)
         
     def addN(self, iterable: Numerics, batch: bool = False):
         """Add N data to the stats
