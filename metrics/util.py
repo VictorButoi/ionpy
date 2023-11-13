@@ -50,14 +50,11 @@ def _infer_mode(y_pred: Tensor, y_true: Tensor,) -> InputMode:
 def _inputs_as_onehot(
     y_pred: Tensor,
     y_true: Tensor,
+    discretize: bool,
     mode: InputMode = "auto",
     from_logits: bool = False,
-    discretize: bool = False,
 ) -> Tuple[Tensor, Tensor]:
-    
-    # Expends these potentially to account for missing dimensions.
-    y_pred = expand_to_4d(y_pred)
-    y_true = expand_to_4d(y_true)
+    assert len(y_pred.shape) > 2, "y_pred must have at least 3 dimensions."
     batch_size, num_classes = y_pred.shape[:2]
 
     if mode == "auto":
@@ -67,10 +64,6 @@ def _inputs_as_onehot(
             mode = "multiclass"
 
     if from_logits:
-        # Apply activations to get [0..1] class probabilities
-        # Using Log-Exp as this gives more numerically stable result and does not cause vanishing gradient on
-        # extreme values 0 and 1
-
         if mode == "binary":
             # y_pred = F.logsigmoid(y_pred.float()).exp()
             y_pred = torch.sigmoid(y_pred.float())
@@ -99,11 +92,7 @@ def _inputs_as_onehot(
     elif mode == "multiclass":
         y_pred = y_pred.reshape(batch_size, num_classes, -1)
         y_true = y_true.reshape(batch_size, -1)
-        if y_true.dtype != torch.long:
-            y_true_long = y_true.long()
-        else:
-            y_true_long = y_true
-        y_true = F.one_hot(y_true_long, num_classes).permute(0, 2, 1)
+        y_true = F.one_hot(y_true, num_classes).permute(0, 2, 1)
 
     assert y_pred.shape == y_true.shape
     return y_pred.float(), y_true.float()

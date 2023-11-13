@@ -20,12 +20,12 @@ from .util import (
 def dice_score(
     y_pred: Tensor,
     y_true: Tensor,
+    ignore_empty_labels: bool,
     mode: InputMode = "auto",
     smooth: float = 1e-7,
     eps: float = 1e-7,
     reduction: Reduction = "mean",
     batch_reduction: Reduction = "mean",
-    ignore_empty_labels: bool = False,
     weights: Optional[Union[Tensor, List]] = None,
     ignore_index: Optional[int] = None,
     from_logits: bool = False,
@@ -70,42 +70,16 @@ def pixel_accuracy(
     y_pred: Tensor,
     y_true: Tensor,
     mode: InputMode = "auto",
-    from_logits: bool = False,
-    return_all: bool = False
+    from_logits: bool = False
 ):
-
     y_pred_long, y_true_long = _inputs_as_longlabels(
-        y_pred, y_true, mode, from_logits=from_logits, discretize=True
+        y_pred, 
+        y_true, 
+        mode, 
+        from_logits=from_logits, 
+        discretize=True
     )
-    correct = (y_pred_long == y_true_long).float()
-
-    if return_all:
-        return correct.mean(), correct.flatten()
-    else:
-        return correct.mean()
-
-
-@validate_arguments(config=dict(arbitrary_types_allowed=True))
-def pixel_precision(
-    y_pred: Tensor,
-    y_true: Tensor,
-    mode: InputMode = "auto",
-    from_logits: bool = False,
-    return_all: bool = False
-):
-
-    y_pred, y_true = _inputs_as_longlabels(
-        y_pred, y_true, mode, from_logits=from_logits, discretize=True
-    )
-
-    # Get tensor of ones like y_pred
-    one_y_pred = torch.ones_like(y_pred)
-    correct = (one_y_pred == y_true).float()
-
-    if return_all:
-        return correct.mean(), correct.flatten()
-    else:
-        return correct.mean()
+    return (y_pred_long == y_true_long).float().mean()
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -116,33 +90,30 @@ def balanced_pixel_accuracy(
     from_logits: bool = False,
     ignore_labels: List[int] = []
 ) -> Tensor:
+    # Convert to onehot_long labels
     y_pred, y_true = _inputs_as_longlabels(
-        y_pred, y_true, mode, from_logits=from_logits, discretize=True
+        y_pred, 
+        y_true, 
+        mode, 
+        from_logits=from_logits, 
+        discretize=True
     )
-
     # Get unique labels in y_true
     unique_labels = torch.unique(y_true).tolist()
-
     # Remove labels to be ignored
     unique_labels = [label for label in unique_labels if label not in ignore_labels]
     accuracies = []
-    
     for label in unique_labels:
         # Create a mask for the current label
         label_mask = (y_true == label).bool()
-        
         # Extract predictions and ground truth for pixels belonging to the current label
         label_pred = y_pred[label_mask]
         label_true = y_true[label_mask]
-        
         # Calculate accuracy for the current label
         correct_label = (label_pred == label_true).float()
         accuracies.append(correct_label.mean())
-        
     # Calculate balanced accuracy by averaging individual label accuracies
-    balanced_accuracy = torch.tensor(accuracies).mean()
-    
-    return balanced_accuracy
+    return torch.tensor(accuracies).mean()
 
 
 def pixel_mse(
