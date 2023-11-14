@@ -5,6 +5,8 @@ import torch.nn.functional as F
 
 # misc imports
 import einops as E
+import numpy as np
+from scipy.ndimage import label
 from pydantic import validate_arguments
 from typing import Literal, Optional, Tuple, Union
 
@@ -201,3 +203,25 @@ def _metric_reduction(
 def batch_channel_flatten(x: Tensor) -> Tensor:
     batch_size, n_channels, *_ = x.shape
     return x.view(batch_size, n_channels, -1)
+
+
+def find_edges_fast(tensor):
+    # Ensure the tensor is a long tensor
+    if not tensor.dtype == torch.int64:
+        raise ValueError("Input tensor must be a LongTensor.")
+    # Convert the tensor to a NumPy array
+    np_array = tensor.numpy()
+    # Use scipy.ndimage.label to identify regions
+    labeled_array, _ = label(np_array)
+    # Create boolean arrays for edge detection
+    edges_vertical = np.zeros_like(labeled_array, dtype=bool)
+    edges_horizontal = np.zeros_like(labeled_array, dtype=bool)
+    # Detect vertical edges
+    edges_vertical[1:, :] = labeled_array[1:, :] != labeled_array[:-1, :]
+    edges_vertical[:-1, :] |= labeled_array[:-1, :] != labeled_array[1:, :]
+    # Detect horizontal edges
+    edges_horizontal[:, 1:] = labeled_array[:, 1:] != labeled_array[:, :-1]
+    edges_horizontal[:, :-1] |= labeled_array[:, :-1] != labeled_array[:, 1:]
+    # Combine vertical and horizontal edges
+    edges = edges_vertical | edges_horizontal
+    return torch.from_numpy(edges)
