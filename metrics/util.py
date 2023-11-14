@@ -177,14 +177,6 @@ def _metric_reduction(
     # Mask out the loss by the weights.
     loss *= weights.type(loss.dtype).to(loss.device)
 
-    # Determine the number of classes to reduce over.
-    if ignore_empty_labels:
-        N = weights.sum(dim=1).float().to(loss.device)
-    else:
-        N = channels
-        if ignore_index is not None:
-            N -= 1
-
     # Reduce over the classes.
     if reduction == "mean":
         W = weights.sum(dim=1).float().to(loss.device)
