@@ -53,7 +53,7 @@ def dice_score(
         else:
             weights = weights * existing_label
 
-    score = _metric_reduction(
+    return _metric_reduction(
         dice_scores,
         reduction=reduction,
         weights=weights,
@@ -61,8 +61,6 @@ def dice_score(
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )
-
-    return score
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -188,7 +186,7 @@ def soft_dice_score(
         else:
             weights = weights * existing_label
     
-    score = _metric_reduction(
+    return _metric_reduction(
         soft_dice_score,
         reduction=reduction,
         weights=weights,
@@ -196,8 +194,6 @@ def soft_dice_score(
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )
-
-    return score
     
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))

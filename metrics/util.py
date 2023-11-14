@@ -12,21 +12,6 @@ InputMode = Literal["binary", "multiclass", "onehot", "auto"]
 Reduction = Union[None, Literal["mean", "sum"]]
 
 
-def expand_to_4d(y_pred):
-    num_dims = len(y_pred.shape)
-    
-    if num_dims == 1:
-        return y_pred.unsqueeze(0).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, 1, W)
-    if num_dims == 2:  # Shape: (H, W)
-        return y_pred.unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, H, W)
-    elif num_dims == 3:  # Shape: (C, H, W)
-        return y_pred.unsqueeze(0)  # Shape: (1, C, H, W)
-    elif num_dims == 4:  # Shape: (B, C, H, W)
-        return y_pred  # No expansion needed
-    else:
-        raise ValueError(f"Input y_pred must have 1, 2, 3, or 4 dimensions, but got {num_dims}.")
-
-
 def hard_max(x: Tensor):
     """
     argmax + onehot
@@ -106,10 +91,8 @@ def _inputs_as_longlabels(
     from_logits: bool = False,
     discretize: bool = False,
 ) -> Tuple[Tensor, Tensor]:
-
+    assert len(y_pred.shape) > 2, "y_pred must have at least 3 dimensions."
     # Expends these potentially to account for missing dimensions.
-    y_pred = expand_to_4d(y_pred)
-    y_true = expand_to_4d(y_true)
     batch_size, num_classes = y_pred.shape[:2]
 
     if mode == "auto":
