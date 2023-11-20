@@ -1,10 +1,12 @@
-# misc imports
-import torch
-import numpy as np
+import itertools
 from abc import abstractmethod
 from typing import Union, Iterable
+from heapq import heappop, heappush
+from collections import defaultdict
 
-# Define some useful types
+import numpy as np
+import torch
+
 Numeric = Union[np.ndarray, torch.Tensor, int, float]
 Numerics = Iterable[Numeric]
 
@@ -41,12 +43,12 @@ class StatsMeter(Meter):
         Keyword Arguments:
             iterable {[iterable} -- Values to initialize (default: {None})
         """
-        self.n = 0
+        self.n: float = 0
         self.mean: Numeric = 0.0
         self.S: Numeric = 0.0
         super().__init__(iterable)
 
-    def add(self, datum: Numeric, weight = 1.0):
+    def add(self, datum: Numeric, weight: float = 1.0):
         """Add a single datum
 
         Internals are updated using Welford's method
@@ -62,12 +64,12 @@ class StatsMeter(Meter):
         # Update the sample mean.
         self.mean = ((weight * datum) + (old_n * old_mean)) / (weight + old_n)
         # Update the sample sum of squares.
-        if weight == 1:
+        if weight == 1.0:
             self.S = self.S + (datum - old_mean) * (datum - self.mean)
         else:
             # S = (S1 + n1 * mu1 * mu1) + (S2 + n2 * mu2 * mu2) - n * mu * mu
             self.S = (self.S + old_n * old_mean**2) + (0 + weight * datum**2) - (self.n * self.mean**2)
-        
+
     def addN(self, iterable: Numerics, batch: bool = False):
         """Add N data to the stats
 
@@ -111,7 +113,6 @@ class StatsMeter(Meter):
 
     @property
     def std(self) -> Numeric:
-        assert self.variance >= 0, f"Variance must be positive (or zero), got {self.variance}."
         return np.sqrt(self.variance)
 
     @staticmethod
@@ -166,12 +167,14 @@ class StatsMeter(Meter):
             mu = n1 / n * mu1 + n2 / n * mu2
             S = (S1 + n1 * mu1 * mu1) + (S2 + n2 * mu2 * mu2) - n * mu * mu
             return StatsMeter.from_raw_values(n, mu, S)
-
         if isinstance(other, (int, float)):
             # Add a fixed amount to all values. Only changes the mean
             return StatsMeter.from_raw_values(self.n, self.mean + other, self.S)
         else:
             raise TypeError("Can only add other groups or numbers")
+
+    def __sub__(self, other):
+        raise NotImplementedError
 
     def __mul__(self, k: Union[float, int]) -> "StatsMeter":
         # Multiply all values seen by some constant
@@ -196,7 +199,8 @@ class StatsMeter(Meter):
 
 
 class MeterDict(dict):
-    def __init__(self):
+    def __init__(self, meter_type=StatsMeter):
+        self._meter_type = meter_type
         super().__init__()
 
     def update(self, data):
@@ -210,7 +214,7 @@ class MeterDict(dict):
 
     def __getitem__(self, key):
         if key not in self:
-            super().__setitem__(key, StatsMeter)
+            super().__setitem__(key, self._meter_type())
         return super().__getitem__(key)
 
     def collect(self, attr):
@@ -221,3 +225,37 @@ class MeterDict(dict):
 
     def add(self, label, value):
         self[label].add(value)
+
+
+class MedianMeter(Meter):
+    def __init__(self, iterable: Iterable[float] = None):
+        self.upper = []
+        self.lower = []
+        super().__init__(iterable)
+
+    def add(self, datum: float):
+        if len(self.lower) == 0 or datum <= -self.lower[0]:
+            heappush(self.lower, -datum)
+        else:
+            heappush(self.upper, datum)
+        if len(self.upper) > len(self.lower) + 1:
+            heappush(self.lower, -heappop(self.upper))
+        elif len(self.lower) > len(self.upper) + 1:
+            heappush(self.upper, -heappop(self.lower))
+
+    @property
+    def median(self) -> float:
+        if len(self.upper) == len(self.lower):
+            return (self.upper[0] - self.lower[0]) / 2
+        elif len(self.upper) > len(self.lower):
+            return self.upper[0]
+        else:
+            return -self.lower[0]
+
+    @property
+    def mad(self) -> float:
+        m = self.median
+        return np.median([abs(m - x) for x in itertools.chain(self.upper, self.lower)])
+
+    def asdict(self) -> dict:
+        return {"median": self.median, "mad": self.mad}

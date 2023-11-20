@@ -128,9 +128,9 @@ def soft_dice_score(
         y_pred, 
         y_true, 
         mode=mode,
+        discretize=False,
         from_logits=from_logits
     )
-    assert y_pred.shape == y_true.shape
 
     intersection = torch.sum(y_pred * y_true, dim=-1)
 

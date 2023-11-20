@@ -11,7 +11,7 @@ from pydantic import validate_arguments
 from .util import _loss_module_from_func
 from ..util.more_functools import partial
 from ..metrics.segmentation import soft_dice_score, soft_jaccard_score, pixel_mse
-from ..metrics.util import InputMode, Reduction
+from ..metrics.util import InputMode, Reduction, _inputs_as_onehot
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -118,10 +118,12 @@ def pixel_crossentropy_loss(
           - nn.CrossEntropyLoss
           - F.cross_entropy
     """
-    batch_size, num_channels = y_pred.shape[:2]
+    assert len(y_pred.shape) > 2, "y_pred must have at least 3 dimensions."
+    batch_size, num_classes = y_pred.shape[:2]
+
     if mode == "auto":
         if y_pred.shape == y_true.shape:
-            mode = "binary" if num_channels == 1 else "onehot"
+            mode = "binary" if num_classes == 1 else "onehot"
         else:
             mode = "multiclass"
 
@@ -129,14 +131,22 @@ def pixel_crossentropy_loss(
         assert y_pred.shape == y_true.shape
         assert ignore_index is None
         assert weights is None
-
         if from_logits:
-            loss = F.binary_cross_entropy_with_logits(y_pred, y_true, reduction="none")
+            loss = F.binary_cross_entropy_with_logits(
+                y_pred, 
+                y_true, 
+                reduction="none"
+                )
         else:
-            loss = F.binary_cross_entropy(y_pred, y_true, reduction="none")
+            loss = F.binary_cross_entropy(
+                y_pred, 
+                y_true, 
+                reduction="none"
+                )
         loss = loss.squeeze(dim=1)
-
     else:
+        # Squeeze the label, (no need for channel dimension).
+        y_true = y_true.squeeze()
         if from_logits:
             loss = F.cross_entropy(
                 y_pred,
