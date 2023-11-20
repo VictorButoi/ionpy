@@ -9,24 +9,21 @@ from .runner import SliteRunner
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def submit_exps(
-    project: str,
-    exp_name: str,
+    exp_root: str,
     exp_class: Any,
     available_gpus: List[str],
     config_list: Optional[List[Any]] = None,
     exp_path_list: Optional[List[Any]] = None,
 ):
-    assert exp_name != "debug", "Cannot launch debug jobs large-scale."
     assert not (config_list is None and exp_path_list is None), "Must provide either a list of configs or a list of experiment paths."
     assert not (config_list is not None and exp_path_list is not None), "Cannot provide both a list of configs and a list of experiment paths."
 
     def launch_training():
         # Create a runner
         runner = SliteRunner(
-            project=project,
+            exp_root=exp_root,
             exp_class=exp_class,
             available_gpus=available_gpus,
-            exp_name=exp_name
         )
         # Submit the experiments
         if config_list is not None: # For training from scratch.
@@ -41,20 +38,16 @@ def submit_exps(
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def submit_jobs(
-    project: str,
-    exp_name: str,
+    exp_root: str,
     job_func: Any,
     config_list: List[Any],
     available_gpus: List[str]
 ):
-    assert exp_name != "debug", "Cannot launch debug jobs large-scale."
-
     def launch_training():
         # Create a runner
         runner = SliteRunner(
-            project=project,
+            exp_root=exp_root,
             available_gpus=available_gpus,
-            exp_name=exp_name,
         )
         # Submit the experiments
         runner.submit_jobs(job_func, config_list)

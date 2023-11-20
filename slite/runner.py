@@ -54,30 +54,23 @@ class SliteRunner:
 
     def __init__(
             self, 
-            project: str,
+            exp_root: str,
             available_gpus: List[str],
             exp_class: Optional[Any] = None,
-            exp_name: Optional[str] = None, 
-            log_root_dir: str='/storage/vbutoi/scratch'
             ):
 
         # Configure Submitit object
-        self.project_name = project 
-        self.exp_name = exp_name
-        self.log_root_dir = log_root_dir
+        self.exp_root = exp_root 
         self.avail_gpus = available_gpus
         self.exp_class = exp_class 
-
-        # Initalize executor if not none
-        if exp_name is not None:
-            self.init_executor()
+        self.init_executor()
 
         # Keep cache of jobs
         self.jobs = []
     
     def init_executor(self):
         # Create submitit executor
-        submitit_root = f"{self.log_root_dir}/{self.project_name}/{self.exp_name}/submitit"
+        submitit_root = f"{self.exp_root}/submitit"
 
         # Setup the excutor parameters
         self.executor = submitit.LocalExecutor(folder=submitit_root)
@@ -94,7 +87,6 @@ class SliteRunner:
         self,
         exp_objects: List[Any] = None
     ):
-        assert self.exp_name is not None, "Must set exp_name before running experiment."
         # exp_objects is a list of either configs or exp_paths
         assert len(exp_objects) <= len(self.avail_gpus),\
                 "Currently, must have same number of experiments as available gpus."
