@@ -115,8 +115,6 @@ class SliteRunner:
         job_func: Any,
         job_cfgs: List[Any] = None
     ):
-        assert self.exp_name is not None, "Must set exp_name before running experiment."
-
         # Keep track of the local jobs
         local_job_list = []
 
