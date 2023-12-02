@@ -57,7 +57,6 @@ def dice_score(
         dice_scores,
         reduction=reduction,
         weights=weights,
-        ignore_empty_labels=ignore_empty_labels,
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )
@@ -156,7 +155,6 @@ def soft_dice_score(
         soft_dice_score,
         reduction=reduction,
         weights=weights,
-        ignore_empty_labels=ignore_empty_labels,
         ignore_index=ignore_index,
         batch_reduction=batch_reduction,
     )
