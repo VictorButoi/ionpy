@@ -133,7 +133,6 @@ def _metric_reduction(
     loss: Tensor,
     reduction: Reduction = "mean",
     batch_reduction: Reduction = "mean",
-    ignore_empty_labels: bool = False,
     weights: Optional[Union[Tensor, list]] = None,
     ignore_index: Optional[int] = None,
 ) -> Tensor:
@@ -147,7 +146,8 @@ def _metric_reduction(
 
     if ignore_index is not None:
         assert 0 <= ignore_index < channels, "ignore_index must be in [0, channels)"
-        uni_weights = torch.Tensor([1.0 if i != ignore_index else 0.0 for i in range(channels)])
+        uni_weights = torch.ones(channels, device=loss.device)
+        uni_weights[ignore_index] = 0.0
         if weights is None:
             weights = uni_weights
         else:
