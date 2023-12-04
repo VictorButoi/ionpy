@@ -175,11 +175,11 @@ def _metric_reduction(
         got weights shape {weights.shape} != loss shape {loss.shape}"
 
     # Mask out the loss by the weights.
-    loss *= weights.type(loss.dtype).to(loss.device)
+    loss *= weights.type(loss.dtype)
 
     # Reduce over the classes.
     if reduction == "mean":
-        W = weights.sum(dim=1).float().to(loss.device)
+        W = weights.sum(dim=1)
         loss = (1 / W) * loss.sum(dim=1)
     elif reduction == "sum":
         loss = loss.sum(dim=1)
