@@ -47,7 +47,7 @@ def dice_score(
     dice_scores = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
 
     if ignore_empty_labels:
-        existing_label = (true_amounts > 0).float().cpu()
+        existing_label = (true_amounts > 0).float()
         if weights is None:
             weights = existing_label
         else:
