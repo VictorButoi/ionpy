@@ -20,15 +20,15 @@ from .util import (
 def dice_score(
     y_pred: Tensor,
     y_true: Tensor,
-    ignore_empty_labels: bool,
     mode: InputMode = "auto",
     smooth: float = 1e-7,
     eps: float = 1e-7,
     reduction: Reduction = "mean",
     batch_reduction: Reduction = "mean",
     weights: Optional[Union[Tensor, List]] = None,
-    ignore_index: Optional[int] = None,
+    ignore_empty_labels: bool = True,
     from_logits: bool = False,
+    ignore_index: Optional[int] = None,
 ) -> Tensor:
 
     y_pred, y_true = _inputs_as_onehot(
@@ -67,7 +67,8 @@ def pixel_accuracy(
     y_pred: Tensor,
     y_true: Tensor,
     mode: InputMode = "auto",
-    from_logits: bool = False
+    from_logits: bool = False,
+    ignore_index: Optional[int] = None
 ):
     y_pred_long, y_true_long = _inputs_as_longlabels(
         y_pred, 
@@ -76,6 +77,10 @@ def pixel_accuracy(
         from_logits=from_logits, 
         discretize=True
     )
+    if ignore_index is not None:
+        y_pred_long = y_pred_long[y_true_long != ignore_index] 
+        y_true_long = y_true_long[y_true_long != ignore_index]
+
     return (y_pred_long == y_true_long).float().mean()
 
 
@@ -207,8 +212,9 @@ def jaccard_score(
     reduction: Reduction = "mean",
     batch_reduction: Reduction = "mean",
     weights: Optional[Union[Tensor, List]] = None,
-    ignore_index: Optional[int] = None,
+    ignore_empty_labels: bool = True,
     from_logits: bool = False,
+    ignore_index: Optional[int] = None,
 ) -> Tensor:
 
     y_pred, y_true = _inputs_as_onehot(
@@ -220,10 +226,19 @@ def jaccard_score(
     )
 
     intersection = torch.logical_and(y_pred == 1.0, y_true == 1.0).sum(dim=-1)
-    cardinalities = (y_pred == 1.0).sum(dim=-1) + (y_true == 1.0).sum(dim=-1)
+    true_amounts = (y_true == 1.0).sum(dim=-1)
+    pred_amounts = (y_pred == 1.0).sum(dim=-1)
+    cardinalities = true_amounts + pred_amounts
     union = cardinalities - intersection
 
     score = (intersection + smooth) / (union + smooth).clamp_min(eps)
+
+    if ignore_empty_labels:
+        existing_label = (true_amounts > 0).float()
+        if weights is None:
+            weights = existing_label
+        else:
+            weights = weights * existing_label
 
     return _metric_reduction(
         score,
