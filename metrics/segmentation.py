@@ -1,12 +1,10 @@
 # torch imports
 import torch
 from torch import Tensor
-
 # misc imports
 from pydantic import validate_arguments
 from typing import Optional, Union, List
-
-
+# local imports
 from .util import (
     _metric_reduction,
     _inputs_as_onehot,

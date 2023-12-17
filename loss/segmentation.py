@@ -11,7 +11,7 @@ from pydantic import validate_arguments
 from .util import _loss_module_from_func
 from ..util.more_functools import partial
 from ..metrics.segmentation import soft_dice_score, soft_jaccard_score, pixel_mse
-from ..metrics.util import InputMode, Reduction, _inputs_as_onehot
+from ..metrics.util import InputMode, Reduction
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -120,6 +120,7 @@ def pixel_crossentropy_loss(
     """
     assert len(y_pred.shape) > 2, "y_pred must have at least 3 dimensions."
     batch_size, num_classes = y_pred.shape[:2]
+    y_true = y_true.long()
 
     if mode == "auto":
         if y_pred.shape == y_true.shape:
@@ -146,7 +147,8 @@ def pixel_crossentropy_loss(
         loss = loss.squeeze(dim=1)
     else:
         # Squeeze the label, (no need for channel dimension).
-        y_true = y_true.squeeze()
+        if len(y_true.shape) == len(y_pred.shape):
+            y_true = y_true.squeeze(1)
         if from_logits:
             loss = F.cross_entropy(
                 y_pred,
