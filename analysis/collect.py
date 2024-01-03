@@ -276,13 +276,14 @@ class ResultsLoader:
         device="cuda",
         checkpoint="max-val-dice_score",
         metric="val-dice_score",
+        build_data=True
         ):
 
         phase, score = metric.split("-")
         subdf = df.select(phase=phase)
         sorted_df = subdf.sort_values(score, ascending=False)
         best_exp = sorted_df.iloc[0].path
-        loaded_exp = exp_class(best_exp)
+        loaded_exp = exp_class(best_exp, build_data=build_data)
 
         if checkpoint is not None:
             loaded_exp.load(tag=checkpoint)

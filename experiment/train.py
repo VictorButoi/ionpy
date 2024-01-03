@@ -17,16 +17,17 @@ from .util import absolute_import, eval_config
 
 class TrainExperiment(BaseExperiment):
 
-    def __init__(self, path):
+    def __init__(self, path, build_data=True):
         torch.backends.cudnn.benchmark = True
         super().__init__(path)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.build_model()
-        self.build_data()
         self.build_optim()
         self.build_loss()
         self.build_metrics()
         self.build_augmentations()
+        if build_data: # Sometimes building the data is not necessary.
+            self.build_data()
 
     def build_data(self):
         data_cfg = self.config["data"].to_dict()
@@ -186,7 +187,6 @@ class TrainExperiment(BaseExperiment):
         self.run_callbacks("wrapup")
 
     def run_phase(self, phase, epoch):
-
         dl = getattr(self, f"{phase}_dl")
         grad_enabled = phase == "train"
 
