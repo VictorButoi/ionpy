@@ -1,3 +1,4 @@
+import os
 import datetime
 import functools
 import string
@@ -16,10 +17,16 @@ import numpy as np
 
 
 def fix_seed(seed):
-    # https://pytorch.org/docs/stable/notes/randomness.html
-    random.seed(seed)
     np.random.seed(seed)
+    random.seed(seed)
     torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    # When running on the CuDNN backend, two further options must be set
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    # Set a fixed value for the hash seed
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    print(f"Random seed set as {seed}")
 
 
 def generate_tuid(nonce_length: int = 4) -> Tuple[str, int]:
