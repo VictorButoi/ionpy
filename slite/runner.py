@@ -5,7 +5,6 @@ import pathlib
 import submitit
 from typing import List, Any, Union, Optional, Literal
 from pydantic import validate_arguments
-
 # ionpy imports
 from ionpy.util import Config
 

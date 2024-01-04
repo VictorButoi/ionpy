@@ -23,10 +23,9 @@ def fix_seed(seed):
     torch.cuda.manual_seed(seed)
     # When running on the CuDNN backend, two further options must be set
     torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
     # Set a fixed value for the hash seed
     os.environ["PYTHONHASHSEED"] = str(seed)
-    print(f"Random seed set as {seed}")
+    print(f"Random seed set as: {seed}")
 
 
 def generate_tuid(nonce_length: int = 4) -> Tuple[str, int]:
