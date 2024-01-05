@@ -25,7 +25,7 @@ def fix_seed(seed):
     torch.backends.cudnn.deterministic = True
     # Set a fixed value for the hash seed
     os.environ["PYTHONHASHSEED"] = str(seed)
-    print(f"Random seed set as: {seed}")
+    print("Set seed: {}".format(seed))
 
 
 def generate_tuid(nonce_length: int = 4) -> Tuple[str, int]:

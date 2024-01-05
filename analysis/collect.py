@@ -1,12 +1,11 @@
 import collections
 import getpass
 import itertools
-import json
 import torch
 import pathlib
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
-from typing import Optional
+from typing import Optional, Any
 
 import more_itertools
 import numpy as np
@@ -16,7 +15,6 @@ import pandas as pd
 
 # unused import because we want the patching side-effects
 # on pd.DataFrames
-from ..pandas import api
 from ..pandas.api import augment_from_attrs
 from ..pandas.convenience import ensure_hashable, to_categories, concat_with_attrs
 from ..util import FileCache
@@ -270,30 +268,33 @@ class ResultsLoader:
         return concat_with_attrs(data_dfs, ignore_index=True)
 
     @staticmethod
-    def get_best_experiment(
-        df, 
+    def load_experiment(
         exp_class, 
         device="cuda",
         checkpoint="max-val-dice_score",
-        metric="val-dice_score",
-        build_data=True
+        build_data=True,
+        df: Optional[Any] = None, 
+        path: Optional[str] = None,
+        selection_metric: Optional[str] = None,
         ):
-
-        phase, score = metric.split("-")
-        subdf = df.select(phase=phase)
-        sorted_df = subdf.sort_values(score, ascending=False)
-        best_exp = sorted_df.iloc[0].path
-        loaded_exp = exp_class(best_exp, build_data=build_data)
-
+        if path is None:
+            assert selection_metric is not None, "Must provide a selection metric if no path is provided."
+            assert df is not None, "Must provide a dataframe if no path is provided."
+            phase, score = selection_metric.split("-")
+            subdf = df.select(phase=phase)
+            sorted_df = subdf.sort_values(score, ascending=False)
+            exp_path = sorted_df.iloc[0].path
+        else:
+            exp_path = path
+        # Load the experiment
+        loaded_exp = exp_class(exp_path, build_data=build_data)
         if checkpoint is not None:
             loaded_exp.load(tag=checkpoint)
-        
         # Set the device
         loaded_exp.device = torch.device(device)
         if device == "cuda":
             loaded_exp.to_device()
-
-        # Place the logs in the experiment, will be hand later
-        loaded_exp.logs = df.select(path=best_exp).reset_index(drop=True)
-
+        # # Place the logs in the experiment, will be hand later
+        # loaded_exp.logs = df.select(path=exp_path).reset_index(drop=True)
+        # Return the modified loaded exp.
         return loaded_exp
