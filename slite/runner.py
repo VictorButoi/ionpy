@@ -115,7 +115,7 @@ class SliteRunner:
                 run_jobs,
                 job_func=job_func,
                 cfg_list=job_chunks[gpu],
-                gpu=gpu
+                available_gpus=gpu
             )
             print(f"Submitted job id: {job.job_id}.")
             self.jobs.append(job)
