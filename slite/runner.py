@@ -74,20 +74,19 @@ class SliteRunner:
         self,
         exp_configs: List[Config]
     ):
-        # exp_objects is a list of either configs or exp_paths
-        assert len(exp_configs) <= len(self.avail_gpus),\
-                "Currently, must have same number of experiments as available gpus."
+        num_gpus = len(self.avail_gpus)
         # Keep track of the local jobs
         local_job_list = []
         for c_idx, config in enumerate(exp_configs):
+            c_gpu = self.avail_gpus[c_idx % num_gpus]
             # Submit the job
             job = self.executor.submit(
                 run_exp,
                 exp_class=self.exp_class,
                 config=config,
-                available_gpus=self.avail_gpus[c_idx] 
+                available_gpus=c_gpu
             )
-            print(f"Submitted job id: {job.job_id}.")
+            print(f"Submitted job id: {job.job_id} on gpu: {c_gpu}.")
             self.jobs.append(job)
             local_job_list.append(job)
         return local_job_list
