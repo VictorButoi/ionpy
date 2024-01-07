@@ -3,7 +3,7 @@ import os
 import sys
 import pathlib
 import submitit
-from typing import List, Any, Union, Optional, Literal
+from typing import List, Any, Optional
 from pydantic import validate_arguments
 # ionpy imports
 from ionpy.util import Config
@@ -27,9 +27,9 @@ def run_exp(
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
-def run_jobs(
+def run_job(
     job_func: Any,
-    cfg_list: List[Config],
+    config: Config,
     available_gpus: int
 ):
     # Important imports, otherwise the processes will not be able to import the necessary modules
@@ -37,8 +37,7 @@ def run_jobs(
     sys.path.append('/storage/vbutoi/projects/ESE')
     # Set the visible gpu.
     os.environ["CUDA_VISIBLE_DEVICES"] = str(available_gpus)
-    for cfg in cfg_list:
-        job_func(cfg)
+    job_func(config)
 
 
 class SliteRunner:
