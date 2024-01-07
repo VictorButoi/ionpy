@@ -47,7 +47,8 @@ class BaseExperiment:
 
         self.store = ThunderDict(self.path / "store")
 
-        fix_seed(self.config.get("experiment.seed"))
+        if "experiment.seed" in self.config:
+            fix_seed(self.config.get("experiment.seed"))
         check_environment()
 
         self.properties["experiment.class"] = self.__class__.__name__
