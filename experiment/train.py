@@ -17,9 +17,9 @@ from .util import absolute_import, eval_config
 
 class TrainExperiment(BaseExperiment):
 
-    def __init__(self, path, build_data=True):
+    def __init__(self, path, set_seed=True, build_data=True):
         torch.backends.cudnn.benchmark = True
-        super().__init__(path)
+        super().__init__(path, set_seed)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.build_model()
         self.build_optim()
