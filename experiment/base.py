@@ -47,11 +47,8 @@ class BaseExperiment:
 
         self.store = ThunderDict(self.path / "store")
 
-        if set_seed:
-            if "experiment.seed" in self.config:
-                fix_seed(self.config.get("experiment.seed"))
-            else:
-                raise ValueError("If set_seed=True, must specify experiment.seed in config")
+        if "experiment.seed" in self.config and set_seed:
+            fix_seed(self.config.get("experiment.seed"))
         check_environment()
 
         self.properties["experiment.class"] = self.__class__.__name__
