@@ -86,7 +86,6 @@ def pixel_mse(
     y_pred: Tensor,
     y_true: Tensor,
     mode: InputMode = "auto",
-    # per_channel: bool = False,
     from_logits: bool = False,
     reduction: Reduction = "mean",
     batch_reduction: Reduction = "mean",

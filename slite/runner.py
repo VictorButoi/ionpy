@@ -13,7 +13,7 @@ from ionpy.util import Config
 def run_exp(
     exp_class: Any,
     config: Config,
-    available_gpus: int
+    available_gpus: int = 0,
 ):
     # Important imports, otherwise the processes will not be able to import the necessary modules
     sys.path.append('/storage/vbutoi/projects')
@@ -30,7 +30,7 @@ def run_exp(
 def run_job(
     job_func: Any,
     config: Config,
-    available_gpus: int
+    available_gpus: int = 0
 ):
     # Important imports, otherwise the processes will not be able to import the necessary modules
     sys.path.append('/storage/vbutoi/projects')
