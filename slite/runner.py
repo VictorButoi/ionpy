@@ -51,6 +51,7 @@ class SliteRunner:
         # Configure Submitit object
         self.exp_root = exp_root 
         self.avail_gpus = available_gpus
+        self.num_gpus = len(available_gpus)
         self.exp_class = exp_class 
         self.init_executor()
         # Keep cache of jobs
@@ -73,11 +74,10 @@ class SliteRunner:
         self,
         exp_configs: List[Config]
     ):
-        num_gpus = len(self.avail_gpus)
         # Keep track of the local jobs
         local_job_list = []
         for c_idx, config in enumerate(exp_configs):
-            c_gpu = self.avail_gpus[c_idx % num_gpus]
+            c_gpu = self.avail_gpus[c_idx % self.num_gpus]
             # Submit the job
             job = self.executor.submit(
                 run_exp,
@@ -88,6 +88,7 @@ class SliteRunner:
             print(f"Submitted job id: {job.job_id} on gpu: {c_gpu}.")
             self.jobs.append(job)
             local_job_list.append(job)
+
         return local_job_list
     
     def submit_jobs(
@@ -97,28 +98,19 @@ class SliteRunner:
     ):
         # Keep track of the local jobs
         local_job_list = []
-
-        # Chunk the job_cfgs list in len(self.avail_gpus) many lists of job_cfgs
-        # as uniformly distributed as possible.
-        num_used_gpus = min(len(job_cfgs), len(self.avail_gpus))
-        used_avail_gpus = self.avail_gpus[:num_used_gpus]
-
-        job_chunks = {gpu: [] for gpu in used_avail_gpus}
-        for j_idx, cfg in enumerate(job_cfgs):
-            job_chunks[str(used_avail_gpus[j_idx % len(used_avail_gpus)])].append(cfg)
-
-        for gpu in used_avail_gpus:
+        for c_idx, config in enumerate(job_cfgs):
+            c_gpu = self.avail_gpus[c_idx % self.num_gpus]
             # Submit the job
             job = self.executor.submit(
-                run_jobs,
+                run_job,
                 job_func=job_func,
-                cfg_list=job_chunks[gpu],
-                available_gpus=gpu
+                config=config,
+                available_gpus=c_gpu
             )
-            print(f"Submitted job id: {job.job_id}.")
+            print(f"Submitted job id: {job.job_id} on gpu: {c_gpu}.")
             self.jobs.append(job)
             local_job_list.append(job)
-        
+
         return local_job_list
 
     def kill_jobs(
