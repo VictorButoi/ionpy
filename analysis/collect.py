@@ -1,11 +1,10 @@
 import collections
 import getpass
 import itertools
-import torch
 import pathlib
 from concurrent.futures import ThreadPoolExecutor
 from fnmatch import fnmatch
-from typing import Optional, Any
+from typing import Optional
 
 import more_itertools
 import numpy as np
@@ -266,35 +265,3 @@ class ResultsLoader:
             )
 
         return concat_with_attrs(data_dfs, ignore_index=True)
-
-    @staticmethod
-    def load_experiment(
-        exp_class, 
-        device="cuda",
-        checkpoint="max-val-dice_score",
-        build_data=True,
-        df: Optional[Any] = None, 
-        path: Optional[str] = None,
-        selection_metric: Optional[str] = None,
-        ):
-        if path is None:
-            assert selection_metric is not None, "Must provide a selection metric if no path is provided."
-            assert df is not None, "Must provide a dataframe if no path is provided."
-            phase, score = selection_metric.split("-")
-            subdf = df.select(phase=phase)
-            sorted_df = subdf.sort_values(score, ascending=False)
-            exp_path = sorted_df.iloc[0].path
-        else:
-            exp_path = path
-        # Load the experiment
-        loaded_exp = exp_class(exp_path, build_data=build_data)
-        if checkpoint is not None:
-            loaded_exp.load(tag=checkpoint)
-        # Set the device
-        loaded_exp.device = torch.device(device)
-        if device == "cuda":
-            loaded_exp.to_device()
-        # # Place the logs in the experiment, will be hand later
-        # loaded_exp.logs = df.select(path=exp_path).reset_index(drop=True)
-        # Return the modified loaded exp.
-        return loaded_exp

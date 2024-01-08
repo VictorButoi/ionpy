@@ -60,7 +60,6 @@ class BaseExperiment:
     def from_config(cls, config) -> "BaseExperiment":
         if isinstance(config, HDict):
             config = config.to_dict()
-
         root = pathlib.Path()
         if "log" in config:
             root = pathlib.Path(config["log"].get("root", "."))
