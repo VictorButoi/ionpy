@@ -182,7 +182,7 @@ class JsonFormat(FileFormat):
     def load(cls, fp) -> object:
         fp = cls.check_fp(fp)
         with fp.open("r") as f:
-            return json.load(f)
+            return  json.loads(f.read())
 
 
 class JsonlFormat(FileFormat):
