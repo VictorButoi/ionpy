@@ -488,6 +488,7 @@ def autoload(path: Union[str, pathlib.Path]) -> object:
 
 
 def autosave(obj, path: Union[str, pathlib.Path], parents=True) -> object:
+    print("Hit autosave!")
     if isinstance(path, str):
         path = pathlib.Path(path)
     ext = path.suffix.strip(".")

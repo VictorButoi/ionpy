@@ -19,6 +19,8 @@ def dict_product(dicts):
      {'character': 'b', 'number': 1},
      {'character': 'b', 'number': 2}]
     """
+    for key in dicts:
+        assert isinstance(dicts[key], list), "All values must be lists, got {} for key {}".format(dicts[key], key)
     return (dict(zip(dicts, x)) for x in itertools.product(*dicts.values()))
 
 
