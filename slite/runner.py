@@ -1,6 +1,7 @@
 # misc imports
 import os
 import sys
+import time
 import pathlib
 import submitit
 from typing import List, Any, Optional
@@ -72,7 +73,8 @@ class SliteRunner:
 
     def submit_exps(
         self,
-        exp_configs: List[Config]
+        exp_configs: List[Config],
+        submission_delay: int = 4.0
     ):
         # Keep track of the local jobs
         local_job_list = []
@@ -88,13 +90,16 @@ class SliteRunner:
             print(f"Submitted job id: {job.job_id} on gpu: {c_gpu}.")
             self.jobs.append(job)
             local_job_list.append(job)
+            # Delay the submission.
+            time.sleep(submission_delay)
 
         return local_job_list
     
     def submit_jobs(
         self,
         job_func: Any,
-        job_cfgs: List[Any] = None
+        job_cfgs: List[Any],
+        submission_delay: int = 4.0
     ):
         # Keep track of the local jobs
         local_job_list = []
@@ -110,6 +115,8 @@ class SliteRunner:
             print(f"Submitted job id: {job.job_id} on gpu: {c_gpu}.")
             self.jobs.append(job)
             local_job_list.append(job)
+            # Delay the submission.
+            time.sleep(submission_delay)
 
         return local_job_list
 
