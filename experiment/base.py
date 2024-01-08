@@ -57,7 +57,7 @@ class BaseExperiment:
             self.properties.update(self.config["log.properties"])
 
     @classmethod
-    def from_config(cls, config) -> "BaseExperiment":
+    def from_config(cls, config, **kwargs) -> "BaseExperiment":
         if isinstance(config, HDict):
             config = config.to_dict()
         root = pathlib.Path()
@@ -70,7 +70,7 @@ class BaseExperiment:
         metadata = {"create_time": create_time, "nonce": nonce, "digest": digest}
         autosave(metadata, path / "metadata.json")
         autosave(config, path / "config.yml")
-        return cls(str(path.absolute()))
+        return cls(str(path.absolute()), **kwargs)
 
     @property
     def metrics(self):

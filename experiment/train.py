@@ -17,7 +17,7 @@ from .util import absolute_import, eval_config
 
 class TrainExperiment(BaseExperiment):
 
-    def __init__(self, path, set_seed=True, build_data=True):
+    def __init__(self, path, set_seed=True, load_data=True):
         torch.backends.cudnn.benchmark = True
         super().__init__(path, set_seed)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -26,16 +26,15 @@ class TrainExperiment(BaseExperiment):
         self.build_loss()
         self.build_metrics()
         self.build_augmentations()
-        if build_data: # Sometimes building the data is not necessary.
-            self.build_data()
+        self.build_data(load_data)
 
-    def build_data(self):
+    def build_data(self, load_data):
         data_cfg = self.config["data"].to_dict()
         dataset_constructor = data_cfg.pop("_class", None) or data_cfg.pop("_fn")
         dataset_cls = absolute_import(dataset_constructor)
-
-        self.train_dataset = dataset_cls(split="train", **data_cfg)
-        self.val_dataset = dataset_cls(split="val", **data_cfg)
+        if load_data:
+            self.train_dataset = dataset_cls(split="train", **data_cfg)
+            self.val_dataset = dataset_cls(split="val", **data_cfg)
 
     def build_dataloader(self):
         assert self.config["dataloader.batch_size"] <= len(
