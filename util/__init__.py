@@ -1,6 +1,6 @@
 from .automap import AutoMap
 from .color import printc
-from .config import Config, HDict, FHDict
+from .config import Config, HDict, FHDict, ImmutableConfig
 from .debug import printcall
 from .env import full_env_info
 from .filecache import FileCache
