@@ -3,6 +3,7 @@ import pathlib
 import sys
 from typing import List
 
+import time
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -198,8 +199,18 @@ class TrainExperiment(BaseExperiment):
         meters = MeterDict()
 
         with torch.set_grad_enabled(grad_enabled):
+            num_batches = len(dl)
+            iter_loader = iter(dl)
             # with torch.inference_mode(not grad_enabled):
-            for batch_idx, batch in enumerate(dl):
+            for batch_idx in range(num_batches):
+
+                torch.cuda.synchronize()
+                start = time.time()
+                batch = next(iter_loader) # Doing this lets us time the data loading.
+                torch.cuda.synchronize()
+                end = time.time()
+                print("Data loading time: ", end - start)
+
                 outputs = self.run_step(
                     batch_idx=batch_idx,
                     batch=batch,
