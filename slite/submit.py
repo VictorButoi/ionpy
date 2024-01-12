@@ -13,7 +13,7 @@ def submit_exps(
     exp_root: str,
     exp_class: Any,
     config_list: List[Config],
-    available_gpus: List[str]
+    available_gpus: Optional[List[str]] = None
 ):
     def launch_training():
         # Create a runner
@@ -34,7 +34,7 @@ def submit_jobs(
     exp_root: str,
     job_func: Any,
     config_list: List[Any],
-    available_gpus: List[str]
+    available_gpus: Optional[List[str]] = None
 ):
     def launch_training():
         # Create a runner

@@ -14,13 +14,14 @@ from ionpy.util import Config
 def run_exp(
     exp_class: Any,
     config: Config,
-    available_gpus: int = 0,
+    available_gpus: Optional[int] = None,
 ):
     # Important imports, otherwise the processes will not be able to import the necessary modules
     sys.path.append('/storage/vbutoi/projects')
     sys.path.append('/storage/vbutoi/projects/ESE')
     # Set the visible gpu.
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(available_gpus)
+    if available_gpus is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(available_gpus)
     # Get the experiment class, either fresh or from a path.
     exp = exp_class.from_config(config)
     # Run the experiment.
@@ -31,13 +32,14 @@ def run_exp(
 def run_job(
     job_func: Any,
     config: Config,
-    available_gpus: int = 0
+    available_gpus: Optional[int] = None 
 ):
     # Important imports, otherwise the processes will not be able to import the necessary modules
     sys.path.append('/storage/vbutoi/projects')
     sys.path.append('/storage/vbutoi/projects/ESE')
     # Set the visible gpu.
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(available_gpus)
+    if available_gpus is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(available_gpus)
     job_func(config)
 
 
@@ -46,13 +48,16 @@ class SliteRunner:
     def __init__(
             self, 
             exp_root: str,
-            available_gpus: List[str],
+            available_gpus: Optional[List[str]] = None,
             exp_class: Optional[Any] = None,
             ):
         # Configure Submitit object
         self.exp_root = exp_root 
         self.avail_gpus = available_gpus
-        self.num_gpus = len(available_gpus)
+        if self.avail_gpus is None:
+            self.num_gpus = 0
+        else:
+            self.num_gpus = len(available_gpus)
         self.exp_class = exp_class 
         self.init_executor()
         # Keep cache of jobs
@@ -79,7 +84,10 @@ class SliteRunner:
         # Keep track of the local jobs
         local_job_list = []
         for c_idx, config in enumerate(exp_configs):
-            c_gpu = self.avail_gpus[c_idx % self.num_gpus]
+            if self.avail_gpus is not None:
+                c_gpu = self.avail_gpus[c_idx % self.num_gpus]
+            else:
+                c_gpu = None
             # Submit the job
             job = self.executor.submit(
                 run_exp,
@@ -104,7 +112,10 @@ class SliteRunner:
         # Keep track of the local jobs
         local_job_list = []
         for c_idx, config in enumerate(job_cfgs):
-            c_gpu = self.avail_gpus[c_idx % self.num_gpus]
+            if self.avail_gpus is not None:
+                c_gpu = self.avail_gpus[c_idx % self.num_gpus]
+            else:
+                c_gpu = None
             # Submit the job
             job = self.executor.submit(
                 run_job,
