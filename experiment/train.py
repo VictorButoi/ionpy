@@ -204,12 +204,12 @@ class TrainExperiment(BaseExperiment):
             # with torch.inference_mode(not grad_enabled):
             for batch_idx in range(num_batches):
 
-                torch.cuda.synchronize()
-                start = time.time()
+                # torch.cuda.synchronize()
+                # start = time.time()
                 batch = next(iter_loader) # Doing this lets us time the data loading.
-                torch.cuda.synchronize()
-                end = time.time()
-                print("Data loading time: ", end - start)
+                # torch.cuda.synchronize()
+                # end = time.time()
+                # print("Data loading time: ", end - start)
 
                 outputs = self.run_step(
                     batch_idx=batch_idx,
