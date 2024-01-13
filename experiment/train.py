@@ -238,20 +238,21 @@ class TrainExperiment(BaseExperiment):
             batch, self.device, self.config.get("train.channels_last", False)
         )
 
-        yhat = self.model(x)
-        loss = self.loss_func(yhat, y)
+        y_hat = self.model(x)
+        loss = self.loss_func(y_hat, y)
 
         if backward:
             loss.backward()
             self.optim.step()
             self.optim.zero_grad()
 
-        return {"loss": loss, "ytrue": y, "ypred": yhat}
+        return {"loss": loss, "y_true": y, "y_pred": y_hat}
 
     def compute_metrics(self, outputs):
         metrics = {"loss": outputs["loss"].item()}
         for name, fn in self.metric_fns.items():
-            value = fn(outputs["ypred"], outputs["ytrue"])
+            # Required signature is y_pred, y_true
+            value = fn(y_pred=outputs["y_pred"], y_true=outputs["y_true"])
             if isinstance(value, torch.Tensor):
                 value = value.item()
             metrics[name] = value
