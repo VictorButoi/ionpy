@@ -139,7 +139,9 @@ class ModelCheckpoint:
             elif any(fnmatch(m, pat) for pat in max_patterns):
                 self.mode = "max"
             else:
-                raise ValueError(f"Can't infer mode for metric {m}")
+                # raise ValueError(f"Can't infer mode for metric {m}")
+                print(f"Warning: Can't infer mode for metric {m}, defaulting to min.")
+                self.mode = "min"
         else:
             self.mode = mode
 
