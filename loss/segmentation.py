@@ -10,8 +10,8 @@ from pydantic import validate_arguments
 # local imports
 from .util import _loss_module_from_func
 from ..util.more_functools import partial
-from ..metrics.segmentation import soft_dice_score, soft_jaccard_score, pixel_mse
 from ..metrics.util import InputMode, Reduction
+from ..metrics.segmentation import soft_dice_score, soft_jaccard_score, pixel_mse
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -149,6 +149,7 @@ def pixel_crossentropy_loss(
         # Squeeze the label, (no need for channel dimension).
         if len(y_true.shape) == len(y_pred.shape):
             y_true = y_true.squeeze(1)
+
         if from_logits:
             loss = F.cross_entropy(
                 y_pred,
