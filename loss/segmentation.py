@@ -128,6 +128,10 @@ def pixel_crossentropy_loss(
         else:
             mode = "multiclass"
 
+    # If weights are a list turn them into a tensor
+    if isinstance(weights, list):
+        weights = torch.tensor(weights, device=y_pred.device, dtype=y_pred.dtype)
+
     if mode == "binary":
         assert y_pred.shape == y_true.shape
         assert ignore_index is None
