@@ -170,7 +170,7 @@ def _metric_reduction(
         else:
             raise NotImplementedError("Haven't implemented weighting scheme when 3 dims.")
     else:
-        weights = torch.ones(batch, channels)
+        weights = torch.ones((batch, channels), device=loss.device)
     assert weights.shape == loss.shape, "Weights must match loss shape,\
         got weights shape {weights.shape} != loss shape {loss.shape}"
 

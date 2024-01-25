@@ -147,7 +147,7 @@ def soft_dice_score(
 
     # If ignore_empty_labels is True, then we want to ignore labels that have no pixels in the ground truth.
     if ignore_empty_labels:
-        existing_label = (true_amounts > 0).float().cpu()
+        existing_label = (true_amounts > 0).float()
         if weights is None:
             weights = existing_label
         else:
