@@ -1,6 +1,5 @@
 import json
 from typing import Dict, List, Type, Union
-
 from pydantic import validate_arguments
 
 JSONType = Type[
