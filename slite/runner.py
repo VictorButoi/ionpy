@@ -71,7 +71,6 @@ class SliteRunner:
         self.executor = submitit.LocalExecutor(folder=submitit_root)
         self.executor.parameters['visible_gpus'] = self.avail_gpus
         self.executor.parameters['timeout_min'] = int(24 * 60 * 7)
-        print("Initalized SliteRunner")
 
     def set_exp_name(self, exp_name):
         self.exp_name = exp_name
@@ -80,7 +79,7 @@ class SliteRunner:
     def submit_exps(
         self,
         exp_configs: List[Config],
-        submission_delay: int = 3.0
+        submission_delay: int = 2.0
     ):
         gpu_string = ','.join([str(g) for g in self.avail_gpus])
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_string)
@@ -110,7 +109,7 @@ class SliteRunner:
         self,
         job_func: Any,
         job_cfgs: List[Any],
-        submission_delay: int = 3.0
+        submission_delay: int = 2.0
     ):
         gpu_string = ','.join([str(g) for g in self.avail_gpus])
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_string)
