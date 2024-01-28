@@ -82,7 +82,8 @@ class SliteRunner:
         exp_configs: List[Config],
         submission_delay: int = 3.0
     ):
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(self.avail_gpus)
+        gpu_string = ','.join([str(g) for g in self.avail_gpus])
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_string)
         # Keep track of the local jobs
         local_job_list = []
         for config in exp_configs:
@@ -111,7 +112,8 @@ class SliteRunner:
         job_cfgs: List[Any],
         submission_delay: int = 3.0
     ):
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(self.avail_gpus)
+        gpu_string = ','.join([str(g) for g in self.avail_gpus])
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_string)
         # Keep track of the local jobs
         local_job_list = []
         for config in job_cfgs:
