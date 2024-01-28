@@ -6,8 +6,9 @@ import pathlib
 import submitit
 from typing import List, Any, Optional
 from pydantic import validate_arguments
-# ionpy imports
-from ionpy.util import Config
+# local imports
+from ..util import Config
+from .utils import get_most_free_gpu
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -46,11 +47,11 @@ def run_job(
 class SliteRunner:
 
     def __init__(
-            self, 
-            exp_root: str,
-            available_gpus: Optional[List[str]] = None,
-            exp_class: Optional[Any] = None,
-            ):
+        self, 
+        exp_root: str,
+        available_gpus: Optional[List[str]] = None,
+        exp_class: Optional[Any] = None,
+    ):
         # Configure Submitit object
         self.exp_root = exp_root 
         self.avail_gpus = available_gpus
@@ -79,13 +80,14 @@ class SliteRunner:
     def submit_exps(
         self,
         exp_configs: List[Config],
-        submission_delay: int = 4.0
+        submission_delay: int = 3.0
     ):
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(self.avail_gpus)
         # Keep track of the local jobs
         local_job_list = []
-        for c_idx, config in enumerate(exp_configs):
+        for config in exp_configs:
             if self.avail_gpus is not None:
-                c_gpu = self.avail_gpus[c_idx % self.num_gpus]
+                c_gpu = get_most_free_gpu(self.avail_gpus)
             else:
                 c_gpu = None
             # Submit the job
@@ -107,13 +109,14 @@ class SliteRunner:
         self,
         job_func: Any,
         job_cfgs: List[Any],
-        submission_delay: int = 4.0
+        submission_delay: int = 3.0
     ):
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(self.avail_gpus)
         # Keep track of the local jobs
         local_job_list = []
-        for c_idx, config in enumerate(job_cfgs):
+        for config in job_cfgs:
             if self.avail_gpus is not None:
-                c_gpu = self.avail_gpus[c_idx % self.num_gpus]
+                c_gpu = get_most_free_gpu(self.avail_gpus)
             else:
                 c_gpu = None
             # Submit the job
