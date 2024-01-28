@@ -1,4 +1,5 @@
 # misc imports
+import time
 import multiprocessing
 from typing import Any, List, Optional
 from pydantic import validate_arguments
@@ -12,9 +13,10 @@ from ionpy.util import Config
 def submit_exps(
     exp_class: Any,
     config_list: List[Config],
-    available_gpus: Optional[List[str]] = None
+    available_gpus: Optional[List[str]] = None,
+    submission_delay: int = 3.0
 ):
-    for config in config_list:
+    for c_idx, config in enumerate(config_list):
         config_dict = config.to_dict()
         def launch_training():
             # Create a runner
@@ -24,19 +26,22 @@ def submit_exps(
                 available_gpus=available_gpus,
             )
             # Submit the experiments
-            runner.submit_exps([config])
+            runner.submit_exps([config], exp_idx=c_idx)
         # Launch the training
         process = multiprocessing.Process(target=launch_training)
         process.start()
+        # Delay the submission.
+        time.sleep(submission_delay)
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def submit_jobs(
     job_func: Any,
     config_list: List[Any],
-    available_gpus: Optional[List[str]] = None
+    available_gpus: Optional[List[str]] = None,
+    submission_delay: int = 3.0
 ):
-    for config in config_list:
+    for c_idx, config in enumerate(config_list):
         config_dict = config.to_dict()
         def launch_training():
             # Create a runner
@@ -45,7 +50,9 @@ def submit_jobs(
                 available_gpus=available_gpus,
             )
             # Submit the experiments
-            runner.submit_jobs(job_func, [config])
+            runner.submit_jobs(job_func, [config], job_idx=c_idx)
         # Launch the training
         process = multiprocessing.Process(target=launch_training)
         process.start()
+        # Delay the submission.
+        time.sleep(submission_delay)

@@ -79,7 +79,8 @@ class SliteRunner:
     def submit_exps(
         self,
         exp_configs: List[Config],
-        submission_delay: int = 2.0
+        submission_delay: int = 0.0,
+        exp_idx: Optional[int] = None
     ):
         gpu_string = ','.join([str(g) for g in self.avail_gpus])
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_string)
@@ -87,7 +88,10 @@ class SliteRunner:
         local_job_list = []
         for config in exp_configs:
             if self.avail_gpus is not None:
-                c_gpu = get_most_free_gpu(self.avail_gpus)
+                if exp_idx is not None:
+                    c_gpu = self.avail_gpus[exp_idx % len(self.avail_gpus)]
+                else:
+                    c_gpu = get_most_free_gpu(self.avail_gpus)
             else:
                 c_gpu = None
             # Submit the job
@@ -109,7 +113,8 @@ class SliteRunner:
         self,
         job_func: Any,
         job_cfgs: List[Any],
-        submission_delay: int = 2.0
+        submission_delay: int = 0.0,
+        job_idx: Optional[int] = None
     ):
         gpu_string = ','.join([str(g) for g in self.avail_gpus])
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_string)
@@ -117,7 +122,10 @@ class SliteRunner:
         local_job_list = []
         for config in job_cfgs:
             if self.avail_gpus is not None:
-                c_gpu = get_most_free_gpu(self.avail_gpus)
+                if job_idx is not None:
+                    c_gpu = self.avail_gpus[job_idx% len(self.avail_gpus)]
+                else:
+                    c_gpu = get_most_free_gpu(self.avail_gpus)
             else:
                 c_gpu = None
             # Submit the job
