@@ -79,6 +79,9 @@ def _inputs_as_onehot(
     elif mode == "multiclass":
         y_pred = y_pred.reshape(batch_size, num_classes, -1)
         y_true = y_true.reshape(batch_size, -1)
+        # If y_true isn't a long tensor, it will be casted to one.
+        if y_true.dtype != torch.long:
+            y_true = y_true.long()
         y_true = F.one_hot(y_true, num_classes).permute(0, 2, 1)
 
     assert y_pred.shape == y_true.shape
