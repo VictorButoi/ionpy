@@ -5,8 +5,6 @@ import torch.nn.functional as F
 
 # misc imports
 import einops as E
-import numpy as np
-from scipy.ndimage import label
 from pydantic import validate_arguments
 from typing import Literal, Optional, Tuple, Union
 
