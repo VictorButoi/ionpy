@@ -24,10 +24,10 @@ class TrainExperiment(BaseExperiment):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.build_model()
         self.build_optim()
-        self.build_loss()
         self.build_metrics()
         self.build_augmentations()
         self.build_data(load_data)
+        self.build_loss()
 
     def build_data(self, load_data):
         data_cfg = self.config["data"].to_dict()
