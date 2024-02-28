@@ -177,6 +177,7 @@ def _metric_reduction(
 
     # Mask out the loss by the weights.
     loss *= weights.type(loss.dtype)
+    # Mask out the loss by the weights.
 
     # Reduce over the classes.
     if reduction == "mean":
