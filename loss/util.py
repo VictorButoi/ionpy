@@ -15,7 +15,7 @@ def _loss_module_from_func(name, loss_func):
             self._func_kwargs.update(kwargs)
             self.__dict__.update(self._func_kwargs)
 
-        def forward(self, y_pred, y_true):
-            return loss_func(y_pred, y_true, **self._func_kwargs)
+        def forward(self, y_pred, y_true, **loss_kwargs):
+            return loss_func(y_pred, y_true, **self._func_kwargs, **loss_kwargs)
 
     return type(name, (_LossWrapper,), {})
