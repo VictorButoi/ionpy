@@ -75,11 +75,50 @@ def pixel_accuracy(
         from_logits=from_logits, 
         discretize=True
     )
+    # Note this only really makes sense in non-binary contexts.
     if ignore_index is not None:
         y_pred_long = y_pred_long[y_true_long != ignore_index] 
         y_true_long = y_true_long[y_true_long != ignore_index]
 
     return (y_pred_long == y_true_long).float().mean()
+
+
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
+def pixel_recall(
+    y_pred: Tensor,
+    y_true: Tensor,
+    mode: InputMode = "auto",
+    from_logits: bool = False,
+):
+    y_pred_long, y_true_long = _inputs_as_longlabels(
+        y_pred,
+        y_true,
+        mode,
+        from_logits=from_logits,
+        discretize=True
+    )
+    true_positives = ((y_pred_long == y_true_long) & (y_true_long == 1)).float().sum()
+    false_negatives = ((y_pred_long != y_true_long) & (y_true_long == 1)).float().sum()
+    return true_positives / (true_positives + false_negatives)
+
+
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
+def pixel_precision(
+    y_pred: Tensor,
+    y_true: Tensor,
+    mode: InputMode = "auto",
+    from_logits: bool = False,
+):
+    y_pred_long, y_true_long = _inputs_as_longlabels(
+        y_pred,
+        y_true,
+        mode,
+        from_logits=from_logits,
+        discretize=True
+    )
+    true_positives = ((y_pred_long == y_true_long) & (y_true_long == 1)).float().sum()
+    false_positives = ((y_pred_long != y_true_long) & (y_true_long == 0)).float().sum()
+    return true_positives / (true_positives + false_positives) 
 
 
 def pixel_mse(
