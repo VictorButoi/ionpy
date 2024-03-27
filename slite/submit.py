@@ -14,7 +14,7 @@ def submit_exps(
     exp_class: Any,
     config_list: List[Config],
     available_gpus: Optional[List[str]] = None,
-    submission_delay: int = 3.0
+    submission_delay: int = 4.0
 ):
     for c_idx, config in enumerate(config_list):
         config_dict = config.to_dict()
@@ -39,7 +39,7 @@ def submit_jobs(
     job_func: Any,
     config_list: List[Any],
     available_gpus: Optional[List[str]] = None,
-    submission_delay: int = 3.0
+    submission_delay: int = 4.0
 ):
     for c_idx, config in enumerate(config_list):
         config_dict = config.to_dict()
