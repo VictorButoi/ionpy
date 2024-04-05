@@ -59,8 +59,9 @@ def deepupdate(original, update) -> Dict[Key, Any]:
 
 def unflatten(flat_dict, sep=None):
     nested_dict = {}
-    for k, v in flat_dict.items():
-        set_nested(nested_dict, k, v, sep=sep)
+    if flat_dict is not None:
+        for k, v in flat_dict.items():
+            set_nested(nested_dict, k, v, sep=sep)
     return nested_dict
 
 
