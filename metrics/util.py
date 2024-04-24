@@ -12,13 +12,21 @@ InputMode = Literal["binary", "multiclass", "onehot", "auto"]
 Reduction = Union[None, Literal["mean", "sum"]]
 
 
-def hard_max(x: Tensor):
+def hard_max(x: Tensor, threshold: float = 0.5) -> Tensor:
     """
     argmax + onehot
     """
     N = len(x.shape)
     order = (0, N - 1, *[i for i in range(1, N - 1)])
-    return F.one_hot(torch.argmax(x, dim=1), num_classes=x.shape[1]).permute(order)
+    # Get the preds with highest probs and the label map.
+    if x.shape[1] > 1:
+        if x.shape[1] == 2 and threshold != 0.5:
+            x_hard = (x[:, 1, ...] > threshold).long()
+        else:
+            x_hard = x.argmax(dim=1)
+    else:
+        x_hard = (x > threshold).long()
+    return F.one_hot(x_hard, num_classes=x.shape[1]).permute(order)
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -36,6 +44,7 @@ def _inputs_as_onehot(
     y_pred: Tensor,
     y_true: Tensor,
     discretize: bool,
+    threshold: float = 0.5,
     mode: InputMode = "auto",
     from_logits: bool = False,
 ) -> Tuple[Tensor, Tensor]:
@@ -64,7 +73,7 @@ def _inputs_as_onehot(
             y_pred = hard_max(y_pred)
             y_true = hard_max(y_true)
         elif mode == "multiclass":
-            y_pred = hard_max(y_pred)
+            y_pred = hard_max(y_pred, threshold=threshold)
 
     if mode == "binary":
         y_true = y_true.reshape(batch_size, 1, -1)
