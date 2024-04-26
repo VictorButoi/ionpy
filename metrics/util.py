@@ -99,6 +99,7 @@ def _inputs_as_onehot(
 def _inputs_as_longlabels(
     y_pred: Tensor,
     y_true: Tensor,
+    threshold: float = 0.5,
     mode: InputMode = "auto",
     from_logits: bool = False,
     discretize: bool = False,
@@ -117,7 +118,7 @@ def _inputs_as_longlabels(
         if mode == "binary":
             y_pred = torch.round(y_pred).clamp_min(0.0).clamp_max(1.0)
         else:
-            y_pred = hard_max(y_pred)
+            y_pred = hard_max(y_pred, threshold=threshold)
 
     if mode == "binary":
         if from_logits:
@@ -128,7 +129,14 @@ def _inputs_as_longlabels(
             y_pred = F.log_softmax(y_pred.float(), dim=1).exp()
         batch_size, n_classes = y_pred.shape[:2]
         y_pred = y_pred.view(batch_size, n_classes, -1)
-        y_pred = torch.argmax(y_pred, dim=1)
+
+        if y_pred.shape[1] > 1:
+            if y_pred.shape[1] == 2 and threshold != 0.5:
+                y_pred = (y_pred[:, 1, ...] > threshold).long()
+            else:
+                y_pred = y_pred.argmax(dim=1)
+        else:
+            y_pred = (y_pred > threshold).long()
 
         if mode == "onehot":
             y_true = torch.argmax(y_true, dim=1)
