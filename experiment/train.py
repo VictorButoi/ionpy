@@ -18,14 +18,14 @@ from .util import absolute_import, eval_config
 
 class TrainExperiment(BaseExperiment):
 
-    def __init__(self, path, set_seed=True, load_data=True):
+    def __init__(self, path, set_seed=True, init_metrics=True, load_data=True):
         torch.backends.cudnn.benchmark = True
         super().__init__(path, set_seed)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.build_model()
         self.build_optim()
-        self.build_metrics()
         self.build_augmentations()
+        self.build_metrics(init_metrics)
         self.build_data(load_data)
         self.build_loss()
 
@@ -71,10 +71,11 @@ class TrainExperiment(BaseExperiment):
     def build_loss(self):
         self.loss_func = eval_config(self.config["loss_func"])
 
-    def build_metrics(self):
+    def build_metrics(self, init_metrics):
         self.metric_fns = {}
-        if "log.metrics" in self.config:
-            self.metric_fns = eval_config(copy.deepcopy(self.config["log.metrics"]))
+        if init_metrics:
+            if "log.metrics" in self.config:
+                self.metric_fns = eval_config(copy.deepcopy(self.config["log.metrics"]))
 
     def build_initialization(self):
         if "initialization" in self.config:
