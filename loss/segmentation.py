@@ -30,6 +30,9 @@ def soft_dice_loss(
     square_denom: bool = True,
     log_loss: bool = False,
 ) -> Tensor:
+    # Quick check to see if we are dealing with binary segmentation
+    if y_pred.shape[1] == 1:
+        assert ignore_index is None, "ignore_index is not supported for binary segmentation."
 
     score = soft_dice_score(
         y_pred,
@@ -70,6 +73,9 @@ def soft_jaccard_loss(
     square_denom: bool = True,
     log_loss: bool = False,
 ) -> Tensor:
+    # Quick check to see if we are dealing with binary segmentation
+    if y_pred.shape[1] == 1:
+        assert ignore_index is None, "ignore_index is not supported for binary segmentation."
 
     score = soft_jaccard_score(
         y_pred,
