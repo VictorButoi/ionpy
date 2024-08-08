@@ -156,10 +156,12 @@ class ModelCheckpoint:
         history = metrics[metrics.epoch < epoch]
 
         for quantity in self.monitors:
-            tag = f"{self.mode}-{self.phase}-{quantity}"
 
-            prev_best = getattr(history[quantity], self.mode)()
-            current_best = getattr(metrics[quantity], self.mode)()
+            quantity_mode = self.mode_dict[quantity]
+            tag = f"{quantity_mode}-{self.phase}-{quantity}"
+
+            prev_best = getattr(history[quantity], quantity_mode)()
+            current_best = getattr(metrics[quantity], quantity_mode)()
 
             if prev_best != current_best:
                 ckpt_path = self.experiment.path / "checkpoints"
