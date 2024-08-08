@@ -3,7 +3,7 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from fnmatch import fnmatch
-from typing import Literal, Union
+from typing import List, Literal, Union
 
 import numpy as np
 from pydantic import validate_arguments
@@ -115,7 +115,7 @@ class ModelCheckpoint:
     def __init__(
         self,
         experiment,
-        monitor: str = "loss",
+        monitor: Union[str, List[str]] = "loss",
         mode: Literal["auto", "min", "max"] = "auto",
         phase: str = "val",
         save_top_k: int = 1,
@@ -124,26 +124,29 @@ class ModelCheckpoint:
 
         self.phase = phase
         self.experiment = experiment
-        self.monitor = monitor
         self.save_top_k = save_top_k
         self.save_freq = save_freq
 
         min_patterns = ["*loss*", "*err*"]
         max_patterns = ["*acc*", "*precision*", "*score*"]
 
-        if mode == "auto":
-            self.mode = None
-            m = self.monitor
-            if any(fnmatch(m, pat) for pat in min_patterns):
-                self.mode = "min"
-            elif any(fnmatch(m, pat) for pat in max_patterns):
-                self.mode = "max"
-            else:
-                # raise ValueError(f"Can't infer mode for metric {m}")
-                print(f"Warning: Can't infer mode for metric {m}, defaulting to min.")
-                self.mode = "min"
+        if isinstance(monitor, str):
+            self.monitors = [monitor]
         else:
-            self.mode = mode
+            self.monitors = monitor
+        
+        self.mode_dict = {}
+        for m in self.monitors:
+            if mode == "auto":
+                if any(fnmatch(m, pat) for pat in min_patterns):
+                    self.mode_dict[m] = "min"
+                elif any(fnmatch(m, pat) for pat in max_patterns):
+                    self.mode_dict[m] = "max"
+                else:
+                    print(f"Warning: Can't infer mode for metric {m}, defaulting to min.")
+                    self.mode_dict[m] = "min"
+            else:
+                self.mode_dict[m] = mode
 
     def __call__(self, epoch):
         if epoch % self.save_freq != 0:
@@ -152,20 +155,19 @@ class ModelCheckpoint:
         metrics = metrics[metrics.phase == self.phase]
         history = metrics[metrics.epoch < epoch]
 
-        quantity = self.monitor
+        for quantity in self.monitors:
+            tag = f"{self.mode}-{self.phase}-{quantity}"
 
-        tag = f"{self.mode}-{self.phase}-{quantity}"
+            prev_best = getattr(history[quantity], self.mode)()
+            current_best = getattr(metrics[quantity], self.mode)()
 
-        prev_best = getattr(history[quantity], self.mode)()
-        current_best = getattr(metrics[quantity], self.mode)()
-
-        if prev_best != current_best:
-            ckpt_path = self.experiment.path / "checkpoints"
-            for i in range(self.save_top_k - 1, 0, -1):
-                src = ckpt_path / f"{tag}_{i}.pt" if i > 1 else ckpt_path / f"{tag}.pt"
-                if src.exists():
-                    src.rename(ckpt_path / f"{tag}_{i+1}.pt")
-            self.experiment.checkpoint(tag)
+            if prev_best != current_best:
+                ckpt_path = self.experiment.path / "checkpoints"
+                for i in range(self.save_top_k - 1, 0, -1):
+                    src = ckpt_path / f"{tag}_{i}.pt" if i > 1 else ckpt_path / f"{tag}.pt"
+                    if src.exists():
+                        src.rename(ckpt_path / f"{tag}_{i+1}.pt")
+                self.experiment.checkpoint(tag)
 
 
 def JobProgress(experiment):
