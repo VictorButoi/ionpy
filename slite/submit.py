@@ -50,6 +50,7 @@ def submit_jobs(
                 available_gpus=available_gpus,
             )
             # Submit the experiments
+            print(f"Submitting job {c_idx + 1}/{len(config_list)}:")
             runner.submit_jobs(job_func, [config], job_idx=c_idx)
         # Launch the training
         process = multiprocessing.Process(target=launch_training)

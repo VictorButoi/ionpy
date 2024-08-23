@@ -120,7 +120,7 @@ class SliteRunner:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_string)
         # Keep track of the local jobs
         local_job_list = []
-        for j_idx, job_config in enumerate(job_cfgs):
+        for job_config in job_cfgs:
             if self.avail_gpus is not None:
                 if job_idx is not None:
                     c_gpu = self.avail_gpus[job_idx % len(self.avail_gpus)]
@@ -135,7 +135,7 @@ class SliteRunner:
                 config=job_config,
                 available_gpus=c_gpu
             )
-            print(f"Submitted job {j_idx}/{len(job_cfgs)} with id: {job.job_id} on gpu: {c_gpu}.")
+            print(f"--> Launched job-id: {job.job_id} on gpu: {c_gpu}.")
             self.jobs.append(job)
             local_job_list.append(job)
             # Delay the submission.
