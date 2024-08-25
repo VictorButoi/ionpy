@@ -52,6 +52,7 @@ class TrainExperiment(BaseExperiment):
     def build_model(self):
         self.model = eval_config(self.config["model"])
         self.properties["num_params"] = num_params(self.model)
+        self.to_device()
 
     def build_optim(self):
         optim_cfg = self.config["optim"].to_dict()
@@ -67,6 +68,8 @@ class TrainExperiment(BaseExperiment):
             optim_cfg["params"] = self.model.parameters()
 
         self.optim = eval_config(optim_cfg)
+        # Zero out the gradients as initialization 
+        self.optim.zero_grad()
 
     def build_loss(self):
         self.loss_func = eval_config(self.config["loss_func"])
@@ -154,7 +157,6 @@ class TrainExperiment(BaseExperiment):
     def run(self):
         print(f"Running {str(self)}")
         epochs: int = self.config["train.epochs"]
-        self.to_device()
         self.build_dataloader()
         self.build_callbacks()
 
@@ -165,9 +167,6 @@ class TrainExperiment(BaseExperiment):
             autosave(df[df.epoch < last_epoch], self.path / "metrics.jsonl")
         else:
             self.build_initialization()
-
-        self.to_device()
-        self.optim.zero_grad()
 
         checkpoint_freq: int = self.config.get("log.checkpoint_freq", 1)
         eval_freq: int = self.config.get("train.eval_freq", 1)
