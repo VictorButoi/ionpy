@@ -7,6 +7,7 @@ import time
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+from torch.cuda.amp import autocast, GradScaler
 
 from ..nn.util import num_params, split_param_groups_by_weight_decay
 from ..util.ioutil import autosave
@@ -157,6 +158,11 @@ class TrainExperiment(BaseExperiment):
     def run(self):
         print(f"Running {str(self)}")
         epochs: int = self.config["train.epochs"]
+
+        # If using mixed precision, then create a GradScaler to scale gradients during mixed precision training.
+        if self.config.get('experiment.torch_mixed_precision', False):
+            self.grad_scaler = GradScaler()
+
         self.build_dataloader()
         self.build_callbacks()
 
@@ -197,14 +203,12 @@ class TrainExperiment(BaseExperiment):
         self.model.train(grad_enabled)  # For dropout, batchnorm, &c
 
         meters = MeterDict()
+        num_batches = len(dl)
+        iter_loader = iter(dl)
 
         with torch.set_grad_enabled(grad_enabled):
-            num_batches = len(dl)
-            iter_loader = iter(dl)
             for batch_idx in range(num_batches):
-
                 batch = next(iter_loader) # Doing this lets us time the data loading.
-
                 outputs = self.run_step(
                     batch_idx=batch_idx,
                     batch=batch,
