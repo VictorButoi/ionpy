@@ -138,7 +138,7 @@ class TrainExperiment(BaseExperiment):
         checkpoint_dir = self.path / "checkpoints"
         tag = tag if tag is not None else "last"
         with (checkpoint_dir / f"{tag}.pt").open("rb") as f:
-            state = torch.load(f, map_location=self.device)
+            state = torch.load(f, map_location=self.device, weights_only=True)
             self.set_state(state)
         if verbose:
             print(
