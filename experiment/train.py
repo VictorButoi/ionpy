@@ -7,7 +7,7 @@ import time
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import GradScaler
 
 from ..nn.util import num_params, split_param_groups_by_weight_decay
 from ..util.ioutil import autosave
@@ -29,6 +29,7 @@ class TrainExperiment(BaseExperiment):
         self.build_metrics(init_metrics)
         self.build_data(load_data)
         self.build_loss()
+
 
     def build_data(self, load_data):
         data_cfg = self.config["data"].to_dict()
@@ -161,7 +162,7 @@ class TrainExperiment(BaseExperiment):
 
         # If using mixed precision, then create a GradScaler to scale gradients during mixed precision training.
         if self.config.get('experiment.torch_mixed_precision', False):
-            self.grad_scaler = GradScaler()
+            self.grad_scaler = GradScaler('cuda')
 
         self.build_dataloader()
         self.build_callbacks()
