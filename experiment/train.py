@@ -19,13 +19,20 @@ from .util import absolute_import, eval_config
 
 class TrainExperiment(BaseExperiment):
 
-    def __init__(self, path, set_seed=True, init_metrics=True, load_data=True):
+    def __init__(
+        self, 
+        path, 
+        set_seed=True, 
+        init_metrics=True, 
+        load_data=True, 
+        load_aug_pipeline=True
+    ):
         torch.backends.cudnn.benchmark = True
         super().__init__(path, set_seed)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.build_model()
         self.build_optim()
-        self.build_augmentations()
+        self.build_augmentations(load_aug_pipeline)
         self.build_metrics(init_metrics)
         self.build_data(load_data)
         self.build_loss()
