@@ -211,12 +211,18 @@ class TrainExperiment(BaseExperiment):
         self.model.train(grad_enabled)  # For dropout, batchnorm, &c
 
         meters = MeterDict()
-        num_batches = len(dl)
         iter_loader = iter(dl)
 
         with torch.set_grad_enabled(grad_enabled):
-            for batch_idx in range(num_batches):
+            for batch_idx in range(len(dl)):
+                # # Time the data loading
+                # torch.cuda.synchronize() 
+                # t1 = time.time()
                 batch = next(iter_loader) # Doing this lets us time the data loading.
+                # torch.cuda.synchronize()
+                # t2 = time.time()
+                # print(f"Data loading time (ms):", (t2 - t1) * 1000)
+
                 outputs = self.run_step(
                     batch_idx=batch_idx,
                     batch=batch,
