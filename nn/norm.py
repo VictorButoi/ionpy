@@ -39,18 +39,20 @@ def get_normlayer(
 ):
     if kind == "batch":
         return getattr(nn, f"BatchNorm{dims}d")(features, **norm_kws)
-    if kind == "batchre":
+    elif kind == "batchre":
         return getattr(batch_renorm, f"BatchRenorm{dims}d")(features, **norm_kws)
-    if kind == "instance":
+    elif kind == "instance":
         # Unlike all others InstanceNorm defaults to affine=False
         # For consistency, we set it to True by default
         norm_kws = {"affine": True, **norm_kws}
         return getattr(nn, f"InstanceNorm{dims}d")(features, **norm_kws)
-    if kind == "layer":
+    elif kind == "layer":
         return nn.GroupNorm(1, features, **norm_kws)
-    if kind == "channel":
+    elif kind == "channel":
         return ChannelNorm(features, **norm_kws)
-    if isinstance(kind, tuple):
+    elif isinstance(kind, tuple):
         k, groups = kind
         assert k == "group"
         return nn.GroupNorm(groups, features, **norm_kws)
+    else:
+        raise ValueError(f"Unknown normalization type {kind}")

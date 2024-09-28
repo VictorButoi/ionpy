@@ -186,10 +186,13 @@ class TrainExperiment(BaseExperiment):
         eval_freq: int = self.config.get("train.eval_freq", 1)
 
         for epoch in range(last_epoch + 1, epochs):
-            print(f"Start epoch {epoch}")
+            print(f"Start epoch {epoch}.")
             self._epoch = epoch
             self.run_phase("train", epoch)
+
+            # Evaluate the model on the validation set.
             if eval_freq > 0 and (epoch % eval_freq == 0 or epoch == epochs - 1):
+                print(f"Start validation round at {epoch}.")
                 self.run_phase("val", epoch)
 
             if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
