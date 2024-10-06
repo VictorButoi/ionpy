@@ -54,5 +54,5 @@ def get_normlayer(
         k, groups = kind
         assert k == "group"
         return nn.GroupNorm(groups, features, **norm_kws)
-    else:
+    elif kind is not None:
         raise ValueError(f"Unknown normalization type {kind}")

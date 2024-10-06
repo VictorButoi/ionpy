@@ -7,6 +7,7 @@ import time
 import importlib
 import pathlib
 from typing import Tuple
+from pprint import pprint
 
 from ..util.config import HDict, Config
 from ..util.ioutil import autoload
@@ -68,7 +69,6 @@ def eval_config(config, opt_kwargs=None):
             config = absolute_import(config.pop("_class"))(**config)
         else:
             imp_class = config.pop("_class")
-            print(imp_class)
             config = absolute_import(imp_class)(**config, **opt_kwargs)
     elif "_fn" in config:
         fn = absolute_import(config.pop("_fn"))
