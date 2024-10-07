@@ -1,8 +1,7 @@
+import sys
 import copy
 import pathlib
-import sys
 from typing import List
-
 import time
 import torch
 from torch import nn
@@ -186,14 +185,22 @@ class TrainExperiment(BaseExperiment):
         eval_freq: int = self.config.get("train.eval_freq", 1)
 
         for epoch in range(last_epoch + 1, epochs):
-            print(f"Start epoch {epoch}.")
             self._epoch = epoch
-            self.run_phase("train", epoch)
+
+            # Either we run a validation epoch first and then do a round of training...
+            if not self.config['experiment'].get('val_first', False):
+                print(f"Start training epoch {epoch}.")
+                self.run_phase("train", epoch)
 
             # Evaluate the model on the validation set.
             if eval_freq > 0 and (epoch % eval_freq == 0 or epoch == epochs - 1):
                 print(f"Start validation round at {epoch}.")
                 self.run_phase("val", epoch)
+
+            # ... or we run a training epoch first and then do a round of validation.
+            if self.config['experiment'].get('val_first', False):
+                print(f"Start training epoch {epoch}.")
+                self.run_phase("train", epoch)
 
             if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
                 self.checkpoint()
