@@ -24,9 +24,9 @@ def hard_max(x: Tensor, threshold: float = 0.5) -> Tensor:
             x_hard = (x[:, 1, ...] > threshold).long()
         else:
             x_hard = x.argmax(dim=1)
+        return F.one_hot(x_hard, num_classes=x.shape[1]).permute(order)
     else:
-        x_hard = (x > threshold).long()
-    return F.one_hot(x_hard, num_classes=x.shape[1]).permute(order)
+        return (x > threshold).long()
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -44,9 +44,9 @@ def _inputs_as_onehot(
     y_pred: Tensor,
     y_true: Tensor,
     discretize: bool,
-    threshold: float = 0.5,
     mode: InputMode = "auto",
     from_logits: bool = False,
+    threshold: Optional[float] = None,
 ) -> Tuple[Tensor, Tensor]:
     assert len(y_pred.shape) > 2, "y_pred must have at least 3 dimensions."
     batch_size, num_classes = y_pred.shape[:2]
@@ -66,14 +66,14 @@ def _inputs_as_onehot(
             y_pred = torch.softmax(y_pred.float(), dim=1)
 
     if discretize:
-        if mode == "binary":
+        if ("mode" == "multiclass") or (threshold is not None):
+            y_pred = hard_max(y_pred, threshold=threshold)
+        elif mode == "binary":
             y_pred = torch.round(y_pred).clamp_min(0.0).clamp_max(1.0)
             y_true = torch.round(y_true).clamp_min(0.0).clamp_max(1.0)
         elif mode == "onehot":
             y_pred = hard_max(y_pred)
             y_true = hard_max(y_true)
-        elif mode == "multiclass":
-            y_pred = hard_max(y_pred, threshold=threshold)
 
     if mode == "binary":
         y_true = y_true.reshape(batch_size, 1, -1)
