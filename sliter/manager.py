@@ -2,9 +2,9 @@
 import time
 import submitit
 import threading
-from ionpy.sliter.run_jobs import run_job 
 from typing import List, Optional, Any
 from flask import Flask, request, jsonify
+from ionpy.sliter.run_jobs import run_job , run_exp
 from pynvml import nvmlInit, nvmlDeviceGetCount, nvmlShutdown, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo
 
 app = Flask(__name__)
@@ -73,28 +73,23 @@ class SliteJobScheduler:
 
         return job_id
 
-    def submit_jobs(
-        self,
-        job_func: Any,
-        job_cfgs: List[Any],
-        submission_delay: int = 0.0,
-        exp_class: Optional[Any] = None,
-    ):
-        for job_config in job_cfgs:
+    def submit_jobs(self, jobjects):
+        for job_config in jobjects['config_list']:
             job, gpu_id, _ = self.submit_job(
-                job_func, 
                 job_config,
-                exp_class=exp_class
+                job_func=jobjects['job_func'],
+                exp_class=jobjects['exp_class']
             )
             print(f"--> Launched job-id: {job.job_id} on gpu: {gpu_id}.")
-            time.sleep(submission_delay)
+            time.sleep(jobjects['submission_delay'])
 
     def submit_job(
         self, 
-        job_func,
-        job_cfg,
+        cfg,
+        job_func: Optional[Any] = None,
         exp_class: Optional[Any] = None
     ):
+
         gpu_id = self.gpu_manager.get_free_gpu()
         if gpu_id is None:
             return None  # No GPU available
@@ -102,13 +97,23 @@ class SliteJobScheduler:
         job_id = self.job_id_counter
         self.job_id_counter += 1
 
+        submit_kwargs = {
+            "config": cfg,
+            "available_gpus": gpu_id
+        }
         # Submit the job to submitit
-        job = self.executor.submit(
-            run_job, 
-            job_func=job_func,
-            config=job_cfg,
-            available_gpus=gpu_id
-        )
+        if exp_class is not None:
+            job = self.executor.submit(
+                run_exp, 
+                exp_class=exp_class,
+                **submit_kwargs
+            )
+        else:
+            job = self.executor.submit(
+                run_job, 
+                job_func=job_func,
+                **submit_kwargs
+            )
 
         with self.lock:
             self.running_jobs[job_id] = {
@@ -166,13 +171,11 @@ class SliteJobScheduler:
 scheduler = SliteJobScheduler()
 
 @app.route('/submit', methods=['POST'])
-def submit_job():
+def submit_jobs():
     data = request.get_json()
     if not data or 'config_list' not in data:
         return jsonify({'error': 'No configs provided.'}), 400
-    print(data.keys())
-    raise ValueError
-    job_id = scheduler.submit_job(command)
+    job_id = scheduler.submit_jobs(data)
     if job_id is not None:
         return jsonify({'job_id': job_id}), 200
     else:

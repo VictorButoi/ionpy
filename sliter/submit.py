@@ -34,6 +34,7 @@ def submit_jobs(
     }
     try:
         response = requests.post(url, json=payload)
+        print(response)
         if response.status_code == 200:
             job_id = response.json().get('job_id')
             print(f"Job {job_id} submitted.")
