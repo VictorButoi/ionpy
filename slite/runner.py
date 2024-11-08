@@ -101,7 +101,7 @@ class SliteRunner:
                 config=config,
                 available_gpus=c_gpu
             )
-            print(f"Submitted job id: {job.job_id} on gpu: {c_gpu}.")
+            print(f"--> Launched job-id: {job.job_id} on gpu: {c_gpu}.")
             self.jobs.append(job)
             local_job_list.append(job)
             # Delay the submission.

@@ -1,0 +1,199 @@
+# scheduler_server.py
+import time
+import submitit
+import threading
+from ionpy.sliter.run_jobs import run_job 
+from typing import List, Optional, Any
+from flask import Flask, request, jsonify
+from pynvml import nvmlInit, nvmlDeviceGetCount, nvmlShutdown, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo
+
+app = Flask(__name__)
+
+
+class SliteGPUManager:
+    def __init__(self):
+        nvmlInit()
+        self.num_gpus = nvmlDeviceGetCount()
+        self.gpu_handles = [nvmlDeviceGetHandleByIndex(i) for i in range(self.num_gpus)]
+        self.lock = threading.Lock()
+        self.gpu_status = [True] * self.num_gpus  # True means free
+
+    def get_free_gpu(self):
+        with self.lock:
+            for i, status in enumerate(self.gpu_status):
+                if status:
+                    self.gpu_status[i] = False
+                    return i
+        return None
+
+    def release_gpu(self, gpu_id):
+        with self.lock:
+            if 0 <= gpu_id < self.num_gpus:
+                self.gpu_status[gpu_id] = True
+
+    def shutdown(self):
+        nvmlShutdown()
+
+
+class SliteJobScheduler:
+    def __init__(self):
+        self.gpu_manager = SliteGPUManager()
+        self.executor = submitit.LocalExecutor("/storage/vbutoi/scratch/Submitit")
+        self.executor.update_parameters(
+            timeout_min=60*24*7,  # 3 days
+            slurm_additional_parameters={
+                "gres": "gpu:1"  # Placeholder, not used in local executor
+            })
+        self.lock = threading.Lock()
+        self.running_jobs = {}
+        self.completed_jobs = {}
+        self.job_id_counter = 1
+
+    def submit_exp(self, command):
+        gpu_id = self.gpu_manager.get_free_gpu()
+        if gpu_id is None:
+            return None  # No GPU available
+
+        job_id = self.job_id_counter
+        self.job_id_counter += 1
+
+        # Submit the job to submitit
+        job = self.executor.submit(run_job, command, gpu_id)
+
+        with self.lock:
+            self.running_jobs[job_id] = {
+                "job": job,
+                "command": command,
+                "gpu_id": gpu_id,
+                "status": "running"
+            }
+
+        # Start a thread to monitor job completion
+        threading.Thread(target=self.monitor_job, args=(job_id, job), daemon=True).start()
+
+        return job_id
+
+    def submit_jobs(
+        self,
+        job_func: Any,
+        job_cfgs: List[Any],
+        submission_delay: int = 0.0,
+        exp_class: Optional[Any] = None,
+    ):
+        for job_config in job_cfgs:
+            job, gpu_id, _ = self.submit_job(
+                job_func, 
+                job_config,
+                exp_class=exp_class
+            )
+            print(f"--> Launched job-id: {job.job_id} on gpu: {gpu_id}.")
+            time.sleep(submission_delay)
+
+    def submit_job(
+        self, 
+        job_func,
+        job_cfg,
+        exp_class: Optional[Any] = None
+    ):
+        gpu_id = self.gpu_manager.get_free_gpu()
+        if gpu_id is None:
+            return None  # No GPU available
+
+        job_id = self.job_id_counter
+        self.job_id_counter += 1
+
+        # Submit the job to submitit
+        job = self.executor.submit(
+            run_job, 
+            job_func=job_func,
+            config=job_cfg,
+            available_gpus=gpu_id
+        )
+
+        with self.lock:
+            self.running_jobs[job_id] = {
+                "job": job,
+                "gpu_id": gpu_id,
+                "status": "running"
+            }
+
+        # Start a thread to monitor job completion
+        threading.Thread(target=self.monitor_job, args=(job_id, job), daemon=True).start()
+
+        return job, gpu_id, job_id
+
+    def monitor_job(self, job_id, job):
+        try:
+            job.result()  # This will block until the job finishes
+            status = "completed"
+        except Exception as e:
+            status = "failed"
+            with self.lock:
+                self.running_jobs[job_id]["error"] = str(e)
+
+        with self.lock:
+            self.running_jobs.pop(job_id, None)
+            self.completed_jobs[job_id] = {
+                "command": self.completed_jobs.get(job_id, {}).get("command", ""),
+                "gpu_id": self.completed_jobs.get(job_id, {}).get("gpu_id", ""),
+                "status": status
+            }
+
+        # Release the GPU
+        self.gpu_manager.release_gpu(self.completed_jobs[job_id]["gpu_id"])
+
+    def list_jobs(self):
+        with self.lock:
+            running = {
+                job_id: {
+                    "command": info["command"],
+                    "gpu_id": info["gpu_id"],
+                    "status": info["status"]
+                } for job_id, info in self.running_jobs.items()
+            }
+            completed = self.completed_jobs.copy()
+        return {"running": running, "completed": completed}
+
+    def shutdown(self):
+        self.gpu_manager.shutdown()
+        # Optionally, cancel all running jobs
+        with self.lock:
+            for job_id, info in self.running_jobs.items():
+                info["job"].cancel()
+        self.executor.shutdown()
+
+# Initialize the scheduler
+scheduler = SliteJobScheduler()
+
+@app.route('/submit', methods=['POST'])
+def submit_job():
+    data = request.get_json()
+    if not data or 'config_list' not in data:
+        return jsonify({'error': 'No configs provided.'}), 400
+    print(data.keys())
+    raise ValueError
+    job_id = scheduler.submit_job(command)
+    if job_id is not None:
+        return jsonify({'job_id': job_id}), 200
+    else:
+        return jsonify({'error': 'No GPU available. Try again later.'}), 503
+
+@app.route('/jobs', methods=['GET'])
+def get_jobs():
+    jobs = scheduler.list_jobs()
+    return jsonify(jobs), 200
+
+@app.route('/shutdown', methods=['POST'])
+def shutdown_server():
+    def shutdown():
+        scheduler.shutdown()
+        func = request.environ.get('werkzeug.server.shutdown')
+        if func:
+            func()
+    
+    threading.Thread(target=shutdown).start()
+    
+    return jsonify({'message': 'Scheduler shutting down...'}), 200
+if __name__ == '__main__':
+    # Run the Flask app
+    app.run(host='0.0.0.0', port=5000)
