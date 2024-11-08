@@ -5,7 +5,7 @@ import threading
 from typing import List, Optional, Any
 from flask import Flask, request, jsonify
 from ionpy.sliter.run_jobs import run_job , run_exp
-from pynvml import nvmlInit, nvmlDeviceGetCount, nvmlShutdown, nvmlDeviceGetHandleByIndex, nvmlDeviceGetMemoryInfo
+from pynvml import nvmlInit, nvmlDeviceGetCount, nvmlShutdown, nvmlDeviceGetHandleByIndex
 
 app = Flask(__name__)
 
@@ -165,7 +165,6 @@ class SliteJobScheduler:
         with self.lock:
             for job_id, info in self.running_jobs.items():
                 info["job"].cancel()
-        self.executor.shutdown()
 
 # Initialize the scheduler
 scheduler = SliteJobScheduler()
@@ -188,15 +187,16 @@ def get_jobs():
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown_server():
-    def shutdown():
-        scheduler.shutdown()
-        func = request.environ.get('werkzeug.server.shutdown')
-        if func:
-            func()
+    # Directly call scheduler shutdown and server shutdown within the request context
+    scheduler.shutdown()  # Ensure that this line only runs if scheduler is defined
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    # Run the shutdown function in a separate thread if needed
+    threading.Thread(target=func).start()
     
-    threading.Thread(target=shutdown).start()
-    
-    return jsonify({'message': 'Scheduler shutting down...'}), 200
+    return jsonify({"message": "Server is shutting down..."}), 200
+
 if __name__ == '__main__':
     # Run the Flask app
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', debug=True, port=5000)

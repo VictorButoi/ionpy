@@ -26,20 +26,23 @@ def is_server_running():
 
 
 def start_server():
-    print("Scheduler server not running. Starting server...")
-    with open(LOG_FILE, 'a') as log:
-        process = subprocess.Popen(
-            [sys.executable,SERVER_SCRIPT],
-            stdout=log,
-            stderr=log,
-            preexec_fn=os.setsid,  # For Unix
-        )
-    for _ in range(10):
-        if is_server_running():
-            print("Scheduler server started.")
-            return
-        time.sleep(1)
-    print("Failed to start scheduler server. Check logs for details.")
+    if is_server_running():
+        print("Scheduler server is already running.")
+    else:
+        print("Scheduler server not running. Starting server...")
+        with open(LOG_FILE, 'a') as log:
+            process = subprocess.Popen(
+                [sys.executable,SERVER_SCRIPT],
+                stdout=log,
+                stderr=log,
+                preexec_fn=os.setsid,  # For Unix
+            )
+        for _ in range(10):
+            if is_server_running():
+                print("Scheduler server started.")
+                return
+            time.sleep(1)
+        print("Failed to start scheduler server. Check logs for details.")
     sys.exit(1)
 
 
