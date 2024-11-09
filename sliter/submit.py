@@ -22,7 +22,7 @@ def submit_jobs(
     if exp_class is not None and not isinstance(exp_class, str):
         exp_class = f"{exp_class.__module__}.{exp_class.__name__}"
     if job_func is not None and not isinstance(job_func, str):
-        job_func = str(job_func)
+        job_func = f"{job_func.__module__}.{job_func.__name__}"
     
     url = f"{SERVER_URL}/submit"
     payload = {

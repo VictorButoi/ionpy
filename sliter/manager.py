@@ -28,7 +28,7 @@ class SliteGPUManager:
 
     def release_gpu(self, gpu_id):
         with self.lock:
-            if 0 <= gpu_id < self.num_gpus:
+            if (gpu_id is not None) and (0 <= gpu_id < self.num_gpus):
                 self.gpu_status[gpu_id] = True
 
     def shutdown(self):
