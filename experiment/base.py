@@ -1,11 +1,10 @@
-from abc import abstractmethod
-
-import pathlib
-
+# Misc imports
 import yaml
-
+import pathlib
+from typing import Optional
+from abc import abstractmethod
+# Local imports
 from .util import fix_seed, absolute_import, generate_tuid
-
 from ..util.metrics import MetricsDict
 from ..util.config import HDict, FHDict, ImmutableConfig, config_digest
 from ..util.ioutil import autosave
@@ -57,15 +56,20 @@ class BaseExperiment:
             self.properties.update(self.config["log.properties"])
 
     @classmethod
-    def from_config(cls, config, **kwargs) -> "BaseExperiment":
+    def from_config(cls, config, uuid: Optional[str] = None, **kwargs) -> "BaseExperiment":
         if isinstance(config, HDict):
             config = config.to_dict()
         root = pathlib.Path()
         if "log" in config:
             root = pathlib.Path(config["log"].get("root", "."))
-        create_time, nonce = generate_tuid()
-        digest = config_digest(config)
-        uuid = f"{create_time}-{nonce}-{digest}"
+        # UUID is how we separate similar runs that belong to one experiment.
+        if uuid is None:
+            create_time, nonce = generate_tuid()
+            digest = config_digest(config)
+            uuid = f"{create_time}-{nonce}-{digest}"
+        else:
+            create_time, nonce, digest = uuid.split("-")
+        # Make the run path and save the metadata and config.
         path = root / uuid
         metadata = {"create_time": create_time, "nonce": nonce, "digest": digest}
         autosave(metadata, path / "metadata.json")

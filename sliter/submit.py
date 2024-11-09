@@ -19,9 +19,9 @@ def submit_jobs(
     assert (exp_class is not None) ^ (job_func is not None), \
         "Exactly one of exp_class or job_func must be defined."
     # We might have to convert exp_class and job_func to strings.
-    if exp_class is not None:
-        exp_class = str(exp_class)
-    if job_func is not None:
+    if exp_class is not None and not isinstance(exp_class, str):
+        exp_class = f"{exp_class.__module__}.{exp_class.__name__}"
+    if job_func is not None and not isinstance(job_func, str):
         job_func = str(job_func)
     
     url = f"{SERVER_URL}/submit"

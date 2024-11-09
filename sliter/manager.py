@@ -38,40 +38,16 @@ class SliteGPUManager:
 class SliteJobScheduler:
     def __init__(self):
         self.gpu_manager = SliteGPUManager()
-        self.executor = submitit.LocalExecutor("/storage/vbutoi/scratch/Submitit")
-        self.executor.update_parameters(
-            timeout_min=60*24*7,  # 3 days
-            slurm_additional_parameters={
+        self.default_executer_params = {
+            "timeout_min": 60*24*7,  # 7 days
+            "slurm_additional_parameters": {
                 "gres": "gpu:1"  # Placeholder, not used in local executor
-            })
+            }
+        }
         self.lock = threading.Lock()
         self.running_jobs = {}
         self.completed_jobs = {}
         self.job_id_counter = 1
-
-    def submit_exp(self, command):
-        gpu_id = self.gpu_manager.get_free_gpu()
-        if gpu_id is None:
-            return None  # No GPU available
-
-        job_id = self.job_id_counter
-        self.job_id_counter += 1
-
-        # Submit the job to submitit
-        job = self.executor.submit(run_job, command, gpu_id)
-
-        with self.lock:
-            self.running_jobs[job_id] = {
-                "job": job,
-                "command": command,
-                "gpu_id": gpu_id,
-                "status": "running"
-            }
-
-        # Start a thread to monitor job completion
-        threading.Thread(target=self.monitor_job, args=(job_id, job), daemon=True).start()
-
-        return job_id
 
     def submit_jobs(self, jobjects):
         for job_config in jobjects['config_list']:
@@ -89,6 +65,8 @@ class SliteJobScheduler:
         job_func: Optional[Any] = None,
         exp_class: Optional[Any] = None
     ):
+        executor = submitit.LocalExecutor(f'{cfg["log"]["root"]}/{cfg["log"]["uuid"]}/submitit')
+        executor.update_parameters(**self.default_executer_params)
 
         gpu_id = self.gpu_manager.get_free_gpu()
         if gpu_id is None:
@@ -103,13 +81,13 @@ class SliteJobScheduler:
         }
         # Submit the job to submitit
         if exp_class is not None:
-            job = self.executor.submit(
+            job = executor.submit(
                 run_exp, 
                 exp_class=exp_class,
                 **submit_kwargs
             )
         else:
-            job = self.executor.submit(
+            job = executor.submit(
                 run_job, 
                 job_func=job_func,
                 **submit_kwargs

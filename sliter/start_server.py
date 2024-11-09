@@ -29,7 +29,7 @@ def start_server():
     if is_server_running():
         print("Scheduler server is already running.")
     else:
-        print("Scheduler server not running. Starting server...")
+        print("Starting server...")
         with open(LOG_FILE, 'a') as log:
             process = subprocess.Popen(
                 [sys.executable,SERVER_SCRIPT],
