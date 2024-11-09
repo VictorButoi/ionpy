@@ -23,7 +23,8 @@ def run_exp(
     sys.path.append('/storage/vbutoi/projects/ESE')
     # Regular schema dictates that we put DATAPATH
     os.environ['DATAPATH'] = ':'.join((
-        '/storage/vbutoi/datasets',
+        '/storage',
+        '/storage/vbutoi/datasets'
     ))
     # Set the visible gpu.
     if available_gpus is not None:
@@ -51,7 +52,8 @@ def run_job(
     sys.path.append('/storage/vbutoi/projects/ESE')
     # Regular schema dictates that we put DATAPATH
     os.environ['DATAPATH'] = ':'.join((
-        '/storage/vbutoi/datasets',
+        '/storage',
+        '/storage/vbutoi/datasets'
     ))
     # Set the visible gpu.
     if available_gpus is not None:
