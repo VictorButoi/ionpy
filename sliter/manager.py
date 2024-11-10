@@ -26,10 +26,10 @@ class SliteGPUManager:
                     return i
         return None
 
-    def release_gpu(self, gpu_id):
+    def release_gpu(self, job_gpu):
         with self.lock:
-            if (gpu_id is not None) and (0 <= gpu_id < self.num_gpus):
-                self.gpu_status[gpu_id] = True
+            if (job_gpu is not None) and (0 <= job_gpu < self.num_gpus):
+                self.gpu_status[job_gpu] = True
 
     def shutdown(self):
         nvmlShutdown()
@@ -47,7 +47,6 @@ class SliteJobScheduler:
         self.lock = threading.Lock()
         self.running_jobs = {}
         self.completed_jobs = {}
-        self.job_id_counter = 1
 
     def submit_job(
         self, 
@@ -58,16 +57,13 @@ class SliteJobScheduler:
         executor = submitit.LocalExecutor(f'{cfg["log"]["root"]}/{cfg["log"]["uuid"]}/submitit')
         executor.update_parameters(**self.default_executer_params)
 
-        gpu_id = self.gpu_manager.get_free_gpu()
-        if gpu_id is None:
+        job_gpu = self.gpu_manager.get_free_gpu()
+        if job_gpu is None:
             return None  # No GPU available
-
-        job_id = self.job_id_counter
-        self.job_id_counter += 1
 
         submit_kwargs = {
             "config": cfg,
-            "available_gpus": gpu_id
+            "available_gpus": job_gpu
         }
         # Submit the job to submitit
         if exp_class is not None:
@@ -82,18 +78,20 @@ class SliteJobScheduler:
                 job_func=job_func,
                 **submit_kwargs
             )
+        # Get out the job ID
+        job_id = job.job_id
 
         with self.lock:
             self.running_jobs[job_id] = {
                 "job": job,
-                "gpu_id": gpu_id,
+                "job_gpu": job_gpu,
                 "status": "running"
             }
 
         # Start a thread to monitor job completion
         threading.Thread(target=self.monitor_job, args=(job_id, job), daemon=True).start()
 
-        return job, gpu_id, job_id
+        return job_id, job_gpu
 
     def monitor_job(self, job_id, job):
         try:
@@ -107,18 +105,18 @@ class SliteJobScheduler:
         with self.lock:
             job_info = self.running_jobs.pop(job_id, None)
             self.completed_jobs[job_id] = {
-                "gpu_id": job_info.get("gpu_id", ""),
+                "job_gpu": job_info.get("job_gpu", ""),
                 "status": status
             }
 
         # Release the GPU
-        self.gpu_manager.release_gpu(self.completed_jobs[job_id]["gpu_id"])
+        self.gpu_manager.release_gpu(self.completed_jobs[job_id]["job_gpu"])
 
     def list_jobs(self):
         with self.lock:
             running = {
                 job_id: {
-                    "gpu_id": info["gpu_id"],
+                    "job_gpu": info["job_gpu"],
                     "status": info["status"]
                 } for job_id, info in self.running_jobs.items()
             }
@@ -141,13 +139,13 @@ def submit_job():
     if not data or 'config' not in data:
         return jsonify({'error': 'No config provided.'}), 400
     # Submit the job
-    job_id = scheduler.submit_job(
+    job_id, job_gpu = scheduler.submit_job(
         cfg=data['config'],
         job_func=data.get('job_func', None),
         exp_class=data.get('exp_class', None)
     )
     if job_id is not None:
-        return jsonify({'job_id': job_id}), 200
+        return jsonify({'job_id': job_id, 'job_gpu': job_gpu}), 200
     else:
         return jsonify({'error': 'No GPU available. Try again later.'}), 503
 
