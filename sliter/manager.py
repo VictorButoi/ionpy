@@ -49,16 +49,6 @@ class SliteJobScheduler:
         self.completed_jobs = {}
         self.job_id_counter = 1
 
-    def submit_jobs(self, jobjects):
-        for job_config in jobjects['config_list']:
-            job, gpu_id, _ = self.submit_job(
-                job_config,
-                job_func=jobjects['job_func'],
-                exp_class=jobjects['exp_class']
-            )
-            print(f"--> Launched job-id: {job.job_id} on gpu: {gpu_id}.")
-            time.sleep(jobjects['submission_delay'])
-
     def submit_job(
         self, 
         cfg,
@@ -115,10 +105,9 @@ class SliteJobScheduler:
                 self.running_jobs[job_id]["error"] = str(e)
 
         with self.lock:
-            self.running_jobs.pop(job_id, None)
+            job_info = self.running_jobs.pop(job_id, None)
             self.completed_jobs[job_id] = {
-                "command": self.completed_jobs.get(job_id, {}).get("command", ""),
-                "gpu_id": self.completed_jobs.get(job_id, {}).get("gpu_id", ""),
+                "gpu_id": job_info.get("gpu_id", ""),
                 "status": status
             }
 
@@ -129,7 +118,6 @@ class SliteJobScheduler:
         with self.lock:
             running = {
                 job_id: {
-                    "command": info["command"],
                     "gpu_id": info["gpu_id"],
                     "status": info["status"]
                 } for job_id, info in self.running_jobs.items()
@@ -148,11 +136,11 @@ class SliteJobScheduler:
 scheduler = SliteJobScheduler()
 
 @app.route('/submit', methods=['POST'])
-def submit_jobs():
+def submit_job():
     data = request.get_json()
     if not data or 'config_list' not in data:
         return jsonify({'error': 'No configs provided.'}), 400
-    job_id = scheduler.submit_jobs(data)
+    job_id = scheduler.submit_job(data)
     if job_id is not None:
         return jsonify({'job_id': job_id}), 200
     else:

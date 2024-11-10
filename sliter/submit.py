@@ -1,5 +1,6 @@
 # misc imports
 import sys
+import time
 import requests
 from typing import Any, List, Optional
 from pydantic import validate_arguments
@@ -25,21 +26,26 @@ def submit_jobs(
         job_func = f"{job_func.__module__}.{job_func.__name__}"
     
     url = f"{SERVER_URL}/submit"
-    payload = {
-        'config_list': config_list,
+    payload_defaults = {
+        'configt': config_list,
         'exp_class': exp_class,
         'job_func': job_func,
         'available_gpus': available_gpus,
         'submission_delay': submission_delay 
     }
-    try:
-        response = requests.post(url, json=payload)
-        print(response)
-        if response.status_code == 200:
-            job_id = response.json().get('job_id')
-            print(f"Job {job_id} submitted.")
-        else:
-            print(f"Failed to submit job: {response.json().get('error')}")
-    except requests.exceptions.ConnectionError:
-        print("Failed to connect to the scheduler server. Is it running?")
-        sys.exit(1)
+    for cfg in config_list:
+        try:
+            payload_dict = {
+                'config': cfg,
+                **payload_defaults
+            }
+            response = requests.post(url, json=payload_dict)
+            time.sleep(submission_delay)
+            if response.status_code == 200:
+                successful_job = response.json()
+                print(f"--> Launched job-id: {successful_job.get('job_id')} on gpu: {successful_job.get('gpu_id')}.")
+            else:
+                print(f"Failed to submit job: {response.json().get('error')}")
+        except requests.exceptions.ConnectionError:
+            print("Failed to connect to the scheduler server. Is it running?")
+            sys.exit(1)
