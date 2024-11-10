@@ -2,6 +2,7 @@
 import sys
 import time
 import requests
+from pprint import pprint
 from typing import Any, List, Optional
 from pydantic import validate_arguments
 
@@ -27,11 +28,9 @@ def submit_jobs(
     
     url = f"{SERVER_URL}/submit"
     payload_defaults = {
-        'configt': config_list,
-        'exp_class': exp_class,
         'job_func': job_func,
+        'exp_class': exp_class,
         'available_gpus': available_gpus,
-        'submission_delay': submission_delay 
     }
     for cfg in config_list:
         try:

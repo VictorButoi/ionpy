@@ -138,9 +138,14 @@ scheduler = SliteJobScheduler()
 @app.route('/submit', methods=['POST'])
 def submit_job():
     data = request.get_json()
-    if not data or 'config_list' not in data:
-        return jsonify({'error': 'No configs provided.'}), 400
-    job_id = scheduler.submit_job(data)
+    if not data or 'config' not in data:
+        return jsonify({'error': 'No config provided.'}), 400
+    # Submit the job
+    job_id = scheduler.submit_job(
+        cfg=data['config'],
+        job_func=data.get('job_func', None),
+        exp_class=data.get('exp_class', None)
+    )
     if job_id is not None:
         return jsonify({'job_id': job_id}), 200
     else:
