@@ -1,6 +1,7 @@
 # scheduler_server.py
 import time
 import logging
+import traceback
 logging.basicConfig(level=logging.DEBUG)
 import submitit
 import threading
@@ -111,9 +112,8 @@ class SliteJobScheduler:
 
         job_info["submitit_job"] = job
         job_info["status"] = "running"
-
-        with self.lock:
-            self.running_jobs[job_id] = job_info
+        # Place the job in the running_jobs dict.
+        self.running_jobs[job_id] = job_info
 
         threading.Thread(target=self.monitor_job, args=(job_id, job), daemon=True).start()
 
@@ -179,17 +179,25 @@ scheduler = SliteJobScheduler()
 
 @app.route('/submit', methods=['POST'])
 def submit_job_endpoint():
-    data = request.get_json()
-    if not data or 'config' not in data:
-        return jsonify({'error': 'No config provided.'}), 400
-    # Submit the job
-    job_id = scheduler.submit_job(
-        cfg=data['config'],
-        job_func=data.get('job_func', None),
-        exp_class=data.get('exp_class', None)
-    )
-    job_info = scheduler.all_jobs[job_id]
-    return jsonify({'job_id': job_id, 'status': job_info["status"]}), 200
+    try: 
+        data = request.get_json()
+        if not data or 'config' not in data:
+            return jsonify({'error': 'No config provided.'}), 400
+        # Submit the job
+        job_id = scheduler.submit_job(
+            cfg=data['config'],
+            job_func=data.get('job_func', None),
+            exp_class=data.get('exp_class', None)
+        )
+        job_info = scheduler.all_jobs[job_id]
+    except Exception as e:
+        logging.error(f"Failed to submit job {job_id}: {e}")
+        logging.error(traceback.format_exc())
+        job_info = {
+            "job_id": None,
+            "status": "failed",
+        }     
+    return jsonify({'job_id': job_id, 'status': job_info["status"], 'job_gpu': job_info.get('job_gpu')}), 200
 
 @app.route('/jobs', methods=['GET'])
 def get_jobs():
@@ -210,4 +218,4 @@ def shutdown_server():
 
 if __name__ == '__main__':
     # Run the Flask app
-    app.run(host='0.0.0.0', debug=True, port=5000)
+    app.run(host='0.0.0.0', debug=True, port=5000, threaded=True)

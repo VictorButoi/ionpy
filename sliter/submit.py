@@ -42,7 +42,13 @@ def submit_jobs(
             time.sleep(submission_delay)
             if response.status_code == 200:
                 successful_job = response.json()
-                print(f"--> Launched job-id: {successful_job.get('job_id')} on gpu: {successful_job.get('job_gpu')}.")
+                succ_job_status = successful_job.get('status')
+                if succ_job_status == 'running':
+                    print(f"--> Launched job-id: {successful_job.get('job_id')} on gpu: {successful_job.get('job_gpu')}.")
+                elif succ_job_status == 'queued':
+                    print(f"--> Queued job-id: {successful_job.get('job_id')}.")
+                else:
+                    raise ValueError()
             else:
                 print(f"Failed to submit job: {response.json().get('error')}")
         except requests.exceptions.ConnectionError:
