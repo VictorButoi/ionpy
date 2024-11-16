@@ -15,7 +15,7 @@ def submit_jobs(
     exp_class: Optional[Any] = None,
     job_func: Optional[Any] = None,
     available_gpus: Optional[List[str]] = None,
-    submission_delay: int = 4.0
+    submission_delay: int = 0.0
 ):
     # Precisely one of exp_class or job_func must be defined.
     assert (exp_class is not None) ^ (job_func is not None), \
