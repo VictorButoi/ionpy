@@ -68,7 +68,6 @@ class SliteJobScheduler:
                 "exp_class": exp_class,
                 "status": None,  # To be set below
                 "job_gpu": None,
-                "submitit_job": None,
                 "submitit_root": f'{cfg["log"]["root"]}/{cfg["log"]["uuid"]}/submitit'
             }
             self.all_jobs[job_id] = job_info
@@ -111,7 +110,6 @@ class SliteJobScheduler:
                 **submit_kwargs
             )
 
-        job_info["submitit_job"] = job
         job_info["status"] = "running"
         # Place the job in the running_jobs dict.
         self.running_jobs[job_id] = job_info
@@ -167,7 +165,6 @@ class SliteJobScheduler:
         # Optionally, cancel all running jobs and clear the queue
         with self.lock:
             for job_id, info in self.running_jobs.items():
-                info["submitit_job"].cancel()
                 info["status"] = "cancelled"
             self.running_jobs.clear()
             # Clear queued jobs
@@ -219,8 +216,6 @@ def get_job():
         if not data or 'job_id' not in data:
             return jsonify({'error': 'No job-id provided.'}), 400
         # Submit the job
-        logging.error("I hit here!")
-        logging.error(list(scheduler.all_jobs.keys()))
         job_info = scheduler.all_jobs[data['job_id']]
     except Exception as e:
         logging.error(f"Failed to gather job {data['job_id']}: {e}")
@@ -238,4 +233,4 @@ def get_jobs():
 
 if __name__ == '__main__':
     # Run the Flask app
-    app.run(host='0.0.0.0', debug=True, port=5000, threaded=True)
+    app.run(host='0.0.0.0', port=5000, threaded=True)

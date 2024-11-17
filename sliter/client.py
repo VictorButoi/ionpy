@@ -5,6 +5,7 @@ import time
 import argparse
 import requests
 import subprocess
+from pprint import pprint   
 from datetime import datetime
 import json  # Added import for json
 
@@ -57,25 +58,14 @@ def inspect_job(job_id):
     try:
         response = requests.get(url, json={'job_id': job_id})
         if response.status_code == 200:
-            jobs = response.json()
-            if not jobs:
-                print("No jobs found.")
+            job_info = response.json()
+            if not job_info:
+                print(f"Job with id {job_id} not found.")
                 return
-            # Group jobs by status
-            grouped_jobs = {}
-            for job_id, job in jobs.items():
-                status = job.get('status', 'unknown')
-                grouped_jobs.setdefault(status, []).append({
-                    'job_id': job_id,
-                    'job_gpu': job.get('job_gpu')
-                })
-            for status in ['queued', 'running', 'completed', 'failed', 'cancelled']:
-                if status in grouped_jobs:
-                    print(f"\n{status.capitalize()} Jobs:")
-                    for job in grouped_jobs[status]:
-                        print(f"  ID: {job['job_id']}, GPU: {job['job_gpu']}")
+            # Print the job information
+            pprint(job_info)
         else:
-            print("Failed to retrieve jobs.")
+            print(f"Failed to retrieve job with id {job_id}.")
     except requests.exceptions.ConnectionError:
         print("Failed to connect to the scheduler server. Is it running?")
         sys.exit(1)
