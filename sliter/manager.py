@@ -83,6 +83,59 @@ class SliteJobScheduler:
                 job_info["job_gpu"] = job_gpu
                 return self._submit_to_executor(job_id, job_info)
 
+    def kill_job(self, job_id):
+        with self.lock:
+            # Check if the job is running
+            if job_id in self.running_jobs:
+                job_info = self.running_jobs[job_id]
+                job = job_info.get("job_object")
+                if job is not None:
+                    # Attempt to cancel the job
+                    try:
+                        job.cancel()
+                        job_info["status"] = "cancelled"
+                    except Exception as e:
+                        logging.error(f"Failed to cancel job {job_id}: {e}")
+                else:
+                    logging.error(f"No job object found for job {job_id}")
+
+                # Remove from running_jobs, add to completed_jobs
+                self.running_jobs.pop(job_id)
+                self.completed_jobs[job_id] = job_info
+                # Release the GPU
+                self.gpu_manager.release_gpu(job_info["job_gpu"])
+
+                # Check if there are queued jobs
+                if not self.job_queue.empty():
+                    next_job_id = self.job_queue.get()
+                    next_job_info = self.all_jobs[next_job_id]
+                    # Try to get a GPU (should be available now)
+                    job_gpu = self.gpu_manager.get_free_gpu()
+                    if job_gpu is not None:
+                        next_job_info["job_gpu"] = job_gpu
+                        self._submit_to_executor(next_job_id, next_job_info)
+                    else:
+                        # This shouldn't happen, but just in case
+                        next_job_info["status"] = "queued"
+                        self.job_queue.put(next_job_id)
+                return True
+            elif job_id in self.all_jobs and self.all_jobs[job_id]["status"] == "queued":
+                # Job is in queue, remove it
+                # Since Queue doesn't support removal of arbitrary items, rebuild the queue
+                new_queue = queue.Queue()
+                while not self.job_queue.empty():
+                    queued_job_id = self.job_queue.get()
+                    if queued_job_id != job_id:
+                        new_queue.put(queued_job_id)
+                    else:
+                        self.all_jobs[job_id]["status"] = "cancelled"
+                        self.completed_jobs[job_id] = self.all_jobs[job_id]
+                self.job_queue = new_queue
+                return True
+            else:
+                logging.error(f"Job {job_id} is not running.")
+                return False
+
     def _submit_to_executor(self, job_id, job_info):
         cfg = job_info["cfg"]
         job_func = job_info["job_func"]
@@ -111,6 +164,8 @@ class SliteJobScheduler:
             )
 
         job_info["status"] = "running"
+        job_info["job_object"] = job  # Store the job object
+
         # Place the job in the running_jobs dict.
         self.running_jobs[job_id] = job_info
 
@@ -197,6 +252,27 @@ def submit_job_endpoint():
         }     
     return jsonify({'job_id': job_id, 'status': job_info["status"], 'job_gpu': job_info.get('job_gpu')}), 200
 
+@app.route('/kill', methods=['POST'])
+def kill_job_endpoint():
+    try: 
+        data = request.get_json()
+        if not data or 'job_id' not in data:
+            return jsonify({'error': 'No job-id provided.'}), 400
+        jid = data['job_id']
+        # Attempt to kill the job
+        success = scheduler.kill_job(jid)
+        if success:
+            status = f"Job {jid} killed."
+            return jsonify({"status": status}), 200
+        else:
+            status = f"Failed to kill job {jid}."
+            return jsonify({"status": status}), 400
+    except Exception as e:
+        logging.error(f"Failed to kill job with {data.get('job_id', 'unknown')}: {e}")
+        logging.error(traceback.format_exc())
+        status = "Failed to kill job due to server error."
+        return jsonify({"status": status}), 500
+
 @app.route('/shutdown', methods=['POST'])
 def shutdown_server():
     # Directly call scheduler shutdown and server shutdown within the request context
@@ -216,7 +292,9 @@ def get_job():
         if not data or 'job_id' not in data:
             return jsonify({'error': 'No job-id provided.'}), 400
         # Submit the job
-        job_info = scheduler.all_jobs[data['job_id']]
+        job_info = scheduler.all_jobs[data['job_id']].copy()
+        # Pop the job object to avoid serialization errors
+        job_info.pop("job_object", None)
     except Exception as e:
         logging.error(f"Failed to gather job {data['job_id']}: {e}")
         logging.error(traceback.format_exc())

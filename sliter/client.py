@@ -26,28 +26,16 @@ def start_server():
 
 def kill_job(job_id):
     url = f"{SERVER_URL}/kill"
+    data = {'job_id': job_id}
     try:
-        response = requests.get(url)
+        response = requests.post(url, json=data)
         if response.status_code == 200:
-            jobs = response.json()
-            if not jobs:
-                print("No jobs found.")
-                return
-            # Group jobs by status
-            grouped_jobs = {}
-            for job_id, job in jobs.items():
-                status = job.get('status', 'unknown')
-                grouped_jobs.setdefault(status, []).append({
-                    'job_id': job_id,
-                    'job_gpu': job.get('job_gpu')
-                })
-            for status in ['queued', 'running', 'completed', 'failed', 'cancelled']:
-                if status in grouped_jobs:
-                    print(f"\n{status.capitalize()} Jobs:")
-                    for job in grouped_jobs[status]:
-                        print(f"  ID: {job['job_id']}, GPU: {job['job_gpu']}")
+            result = response.json()
+            status = result.get('status', 'Status Unknown.')
+            print(status)
         else:
-            print("Failed to retrieve jobs.")
+            error_message = response.json().get('error', 'No error message provided.')
+            print(f"Failed to kill job {job_id}. Server responded with status code {response.status_code}: {error_message}")
     except requests.exceptions.ConnectionError:
         print("Failed to connect to the scheduler server. Is it running?")
         sys.exit(1)
