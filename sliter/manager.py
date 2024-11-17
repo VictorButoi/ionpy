@@ -68,7 +68,8 @@ class SliteJobScheduler:
                 "exp_class": exp_class,
                 "status": None,  # To be set below
                 "job_gpu": None,
-                "submitit_job": None
+                "submitit_job": None,
+                "submitit_root": f'{cfg["log"]["root"]}/{cfg["log"]["uuid"]}/submitit'
             }
             self.all_jobs[job_id] = job_info
 
@@ -89,7 +90,7 @@ class SliteJobScheduler:
         exp_class = job_info["exp_class"]
         job_gpu = job_info["job_gpu"]
 
-        executor = submitit.LocalExecutor(f'{cfg["log"]["root"]}/{cfg["log"]["uuid"]}/submitit')
+        executor = submitit.LocalExecutor(job_info['submitit_root'])
         executor.update_parameters(**self.default_executer_params)
 
         submit_kwargs = {
@@ -199,11 +200,6 @@ def submit_job_endpoint():
         }     
     return jsonify({'job_id': job_id, 'status': job_info["status"], 'job_gpu': job_info.get('job_gpu')}), 200
 
-@app.route('/jobs', methods=['GET'])
-def get_jobs():
-    jobs = scheduler.list_jobs()
-    return jsonify(jobs), 200
-
 @app.route('/shutdown', methods=['POST'])
 def shutdown_server():
     # Directly call scheduler shutdown and server shutdown within the request context
@@ -215,6 +211,30 @@ def shutdown_server():
     threading.Thread(target=func).start()
     
     return jsonify({"message": "Server is shutting down..."}), 200
+
+@app.route('/get_job', methods=['GET'])
+def get_job():
+    try: 
+        data = request.get_json()
+        if not data or 'job_id' not in data:
+            return jsonify({'error': 'No job-id provided.'}), 400
+        # Submit the job
+        logging.error("I hit here!")
+        logging.error(list(scheduler.all_jobs.keys()))
+        job_info = scheduler.all_jobs[data['job_id']]
+    except Exception as e:
+        logging.error(f"Failed to gather job {data['job_id']}: {e}")
+        logging.error(traceback.format_exc())
+        job_info = {
+            "job_id": None,
+            "status": "failed",
+        }     
+    return jsonify(job_info), 200
+
+@app.route('/jobs', methods=['GET'])
+def get_jobs():
+    jobs = scheduler.list_jobs()
+    return jsonify(jobs), 200
 
 if __name__ == '__main__':
     # Run the Flask app
