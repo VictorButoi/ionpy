@@ -406,7 +406,7 @@ class FHDict(HDict):
 
     def update(self, others: Union["HDict", dict]):
         with self._fileop(persist=True):
-            super().update(other)
+            super().update(others)
 
     def __repr__(self):
         s = f"{self.__class__.__name__}({repr(self._path)}"

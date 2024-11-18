@@ -76,7 +76,7 @@ def flush_jobs(status):
         sys.exit(1)
 
 
-def list_jobs():
+def list_jobs(status):
     url = f"{SERVER_URL}/jobs"
     try:
         response = requests.get(url)
@@ -85,16 +85,19 @@ def list_jobs():
             # Group jobs by status
             grouped_jobs = {}
             for job_id, job in jobs.items():
-                status = job.get('status', 'unknown')
-                grouped_jobs.setdefault(status, []).append({
+                job_status = job.get('status', 'unknown')
+                grouped_jobs.setdefault(job_status, []).append({
                     'job_id': job_id,
                     'job_gpu': job.get('job_gpu')
                 })
-            for status in ['queued', 'running', 'completed', 'failed', 'cancelled']:
+
+            # Print jobs based on chosen status or all
+            statuses_to_display = ['queued', 'running', 'completed', 'failed', 'cancelled'] if status == 'all' else [status]
+            for status in statuses_to_display:
                 print(f"\n{status.capitalize()} Jobs:")
                 for job in grouped_jobs.get(status, []):
                     print(f"  ID: {job['job_id']}, GPU: {job['job_gpu']}")
-            print()# Added print statement to separate the output from the prompt.
+            print()
         else:
             print("Failed to retrieve jobs.")
     except requests.exceptions.ConnectionError:
@@ -125,8 +128,11 @@ def main():
     )
     parser.add_argument(
         '-list', 
-        action='store_true', 
-        help='List all jobs'
+        metavar='STATUS', 
+        nargs='?', 
+        const='all',
+        choices=['queued', 'running', 'completed', 'failed', 'cancelled', 'all'], 
+        help='List jobs based on their status (default is all)'
     )
     parser.add_argument(
         '-shutdown', 
@@ -158,7 +164,7 @@ def main():
     if args.startup:
         start_server()
     elif args.list:
-        list_jobs()
+        list_jobs(args.list)
     elif args.shutdown:
         shutdown_scheduler()
     elif args.kill:
