@@ -129,46 +129,36 @@ def shutdown_scheduler():
         sys.exit(1)
 
 def main():
+    # Create the parser
     parser = argparse.ArgumentParser(description="Local GPU Job Queue Client with Submitit")
-    subparsers = parser.add_subparsers(dest='command')
+    parser.add_argument('-startup', action='store_true', help='Launch the slite job manager')
+    parser.add_argument('-list', action='store_true', help='List all jobs')
+    parser.add_argument('-shutdown', action='store_true', help='Shutdown the scheduler server')
+    parser.add_argument('-kill', metavar='JOB_ID', type=str, help='Kill a job with the given ID')
+    parser.add_argument('-inspect', metavar='JOB_ID', type=str, help='Inspect a job with the given ID')
+    parser.add_argument('-flush', metavar='STATUS', choices=['running', 'queued', 'all'], help='Flush jobs based on their status')
 
-    # Start server command
-    subparsers.add_parser('startup', help='Launch the slite job manager')
-
-    # List command
-    subparsers.add_parser('list', help='List all jobs')
-
-    # Shutdown command
-    subparsers.add_parser('shutdown', help='Shutdown the scheduler server')
-
-    # Kill command
-    kill_parser = subparsers.add_parser('kill', help='Kill a job with the given ID')
-    kill_parser.add_argument('job_id', type=str, help='ID of the job to kill')
-
-    # Inspect command
-    inspect_parser = subparsers.add_parser('inspect', help='Inspect a job with the given ID')
-    inspect_parser.add_argument('job_id', type=str, help='ID of the job to inspect')
-
-    # Flush command
-    flush_parser = subparsers.add_parser('flush', help='Flush jobs based on their status')
-    flush_parser.add_argument('status', choices=['running', 'queued', 'all'], help='Status of jobs to flush')
-
+    # Parse arguments
     args = parser.parse_args()
 
-    if args.command == 'startup':
+    if args.startup:
         start_server()
-    elif args.command == 'kill':
-        job_id = args.job_id
-        kill_job(job_id)
-    elif args.command == 'inspect':
-        job_id = args.job_id
-        inspect_job(job_id)
-    elif args.command == 'list':
+    elif args.list:
         list_jobs()
-    elif args.command == 'flush':
-        flush_jobs(args.status)
-    elif args.command == 'shutdown':
+    elif args.shutdown:
         shutdown_scheduler()
+    elif args.kill:
+        if not args.kill:
+            parser.error("-kill requires a job ID")
+        kill_job(args.kill)
+    elif args.inspect:
+        if not args.inspect:
+            parser.error("-inspect requires a job ID")
+        inspect_job(args.inspect)
+    elif args.flush:
+        if not args.flush:
+            parser.error("-flush requires a status")
+        flush_jobs(args.flush)
     else:
         parser.print_help()
 
