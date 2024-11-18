@@ -46,11 +46,21 @@ class SliteJobScheduler:
             }
         }
         self.lock = threading.Lock()
-        self.running_jobs = {}
-        self.completed_jobs = {}
         self.job_queue = queue.Queue()
         self.job_counter = 0
         self.all_jobs = {}  # Mapping from job_id to job info
+        self.running_jobs = {}
+        self.completed_jobs = {}
+
+    def clear_job(
+        self, 
+        job_id,
+    ):
+        with self.lock:
+            # Remove the job from the all_jobs dict
+            self.all_jobs.pop(job_id, None)
+            self.running_jobs.pop(job_id, None)
+            self.completed_jobs.pop(job_id, None)
 
     def submit_job(
         self, 
@@ -271,6 +281,45 @@ def kill_job_endpoint():
         logging.error(f"Failed to kill job with {data.get('job_id', 'unknown')}: {e}")
         logging.error(traceback.format_exc())
         status = "Failed to kill job due to server error."
+        return jsonify({"status": status}), 500
+
+@app.route('/flush', methods=['POST'])
+def flush_jobs_endpoint():
+    try: 
+        data = request.get_json()
+        if not data or 'status' not in data:
+            return jsonify({'error': 'No job type provided.'}), 400
+        j_status = data['status']
+        # If j_status is 'all' we flush all jobs
+        if j_status == 'all':
+            j_categories = ['queued', 'running', 'completed', 'failed', 'cancelled']
+        else:
+            j_categories = [j_status]
+        # Loop through the job categories.
+        try:
+            # Go through all the different categories to flush them.
+            for j_cat in j_categories:
+                # We need to gather the job ids first to avoid changing the dict while iterating.
+                j_cat_id_list = []
+                for jid in list(scheduler.all_jobs.keys()):
+                    if scheduler.all_jobs[jid]["status"] == j_cat:
+                        j_cat_id_list.append(jid)
+                # Now we can iterate over the job ids and flush them.
+                for cat_jid in j_cat_id_list:
+                    # If the category is 'running' or 'queued', we need to kill the jobs.
+                    if j_cat in ['running', 'queued']:
+                        scheduler.kill_job(cat_jid)
+                    else:
+                        scheduler.clear_job(cat_jid)
+            status = f"{j_status} jobs flushed."
+            return jsonify({"status": status}), 200
+        except Exception as e:
+            status = f"Failed to flush {j_status} jobs."
+            return jsonify({"status": status}), 400
+    except Exception as e:
+        logging.error(f"Failed to flush jobs with {data.get('status', 'unknown')}: {e}")
+        logging.error(traceback.format_exc())
+        status = "Failed to flush jobs due to server error."
         return jsonify({"status": status}), 500
 
 @app.route('/shutdown', methods=['POST'])
