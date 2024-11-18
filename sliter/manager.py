@@ -311,7 +311,8 @@ def flush_jobs_endpoint():
                         scheduler.kill_job(cat_jid)
                     else:
                         scheduler.clear_job(cat_jid)
-            status = f"{j_status} jobs flushed."
+            # Capitalize j_status for the response
+            status = f"{j_status.capitalize} jobs flushed."
             return jsonify({"status": status}), 200
         except Exception as e:
             status = f"Failed to flush {j_status} jobs."

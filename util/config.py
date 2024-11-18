@@ -1,4 +1,5 @@
 import copy
+import fcntl
 import hashlib
 import pathlib
 from collections.abc import MutableMapping, Mapping
@@ -361,12 +362,17 @@ class FHDict(HDict):
 
     @contextmanager
     def _fileop(self, persist=False):
-        data = autoload(self._path)
-        self._data = get_nested(data, self._prefix, sep=self._sep)
-        yield
-        if persist:
-            autosave(data, self._path)
-        delattr(self, "_data")
+        with open(self._path, 'r+') as f:
+            # Acquire an exclusive lock
+            fcntl.flock(f, fcntl.LOCK_EX)
+            data = autoload(self._path)
+            self._data = get_nested(data, self._prefix, sep=self._sep)
+            yield
+            if persist:
+                autosave(data, self._path)
+            # Release the lock
+            fcntl.flock(f, fcntl.LOCK_UN)
+            delattr(self, "_data")
 
     def __contains__(self, key: Key) -> bool:
         with self._fileop():
