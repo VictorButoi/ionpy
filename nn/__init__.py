@@ -1,4 +1,5 @@
 from .conv_block import ConvBlock
+from .attention import MHA
 from .separable import *
 from .hooks import HookedModule
 from .init import *
