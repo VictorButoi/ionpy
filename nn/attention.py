@@ -33,17 +33,15 @@ class MHA(nn.Module):
         B, L, _ = x.size()
         # First split the last dimension into num_heads many d_head feature vecs.
         x = x.view(B, L, self.num_heads, self.d_head)
-        print("Split head:", x.shape)
         # Then we transpose the middle two dimensions so that we can do L x L
         x = x.transpose(1, 2)
         return x
 
     def combine_heads(self, x):
         # The goal of this function is to take an input tensor 
-        # of shape B, L, H, D_h and turn it into B, L, D.
-        B, L, _, _ = x.size()
+        # of shape B, H, L, D_h and turn it into B, L, D.
+        B, H, L, _ = x.size()
         x = x.transpose(1, 2).contiguous() # Always do a contiguous before view.
-        print(x.shape)
         x = x.view(B, L, self.d_model)
         return x
 
@@ -51,16 +49,13 @@ class MHA(nn.Module):
         # Q: B, H, L, D_h
         # K: B, H, L, D_h
         # V: B, H, L, D_h
-        print("qkv:",Q.shape, K.shape, V.shape)
         prod = Q @ K.transpose(-2, -1) # B, H, L, L
-        print("prod:",prod.shape)
         # Then we need to renormalize by the root of D_h because each row the dot scales by D_h.
         scaled_prod = prod / math.sqrt(self.d_head)
         # Then we apply the softmax over the keys.
         weights = torch.softmax(scaled_prod, dim=-1) # B, H, L, L
         # Finally we multiply the weights by V to get the output.
         z = weights @ V
-        print("z:",z.shape)
         return z
     
     def forward(self, x):
