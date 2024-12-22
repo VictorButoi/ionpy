@@ -241,6 +241,7 @@ class TrainExperiment(BaseExperiment):
                     epoch=epoch,
                     phase=phase
                 )
+
                 metrics = self.compute_metrics(outputs)
                 meters.update(metrics)
                 self.run_callbacks(
@@ -274,8 +275,7 @@ class TrainExperiment(BaseExperiment):
     def compute_metrics(self, outputs):
         metrics = {"loss": outputs["loss"].item()}
         for name, fn in self.metric_fns.items():
-            # Required signature is y_pred, y_true
-            value = fn(y_pred=outputs["y_pred"], y_true=outputs["y_true"])
+            value = fn(outputs["ypred"], outputs["ytrue"])
             if isinstance(value, torch.Tensor):
                 value = value.item()
             metrics[name] = value
