@@ -281,5 +281,5 @@ class TrainExperiment(BaseExperiment):
             metrics[name] = value
         return metrics
 
-    def build_augmentations(self):
+    def build_augmentations(self, load_aug_pipeline):
         pass
