@@ -25,4 +25,5 @@ from .debug import inspect_job, InspectStack, TraceLine, TorchTraceback
 from .wrapup import S3Copy
 from .misc import LockMemory
 from .stop import EarlyStopping
+from .wandb import WandbLogger
 from .ema import EMA
