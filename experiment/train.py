@@ -57,10 +57,15 @@ class TrainExperiment(BaseExperiment):
             self.val_dataset, shuffle=False, drop_last=False, **dl_cfg
         )
 
-    def build_model(self):
+    def build_model(self, compile_model=False):
         self.model = eval_config(self.config["model"])
         self.properties["num_params"] = num_params(self.model)
-        self.to_device()
+        # Used from MultiverSeg Code.
+        if torch.__version__ >= "2.0.0" and compile_model:
+            self.model = torch.compile(self.model)
+            self.compiled = True
+        else:
+            self.compiled = False
 
     def build_optim(self):
         optim_cfg = self.config["optim"].to_dict()
