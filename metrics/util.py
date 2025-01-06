@@ -200,8 +200,6 @@ def _metric_reduction(
         loss = (1 / W) * loss.sum(dim=1)
     elif reduction == "sum":
         loss = loss.sum(dim=1)
-    else:
-        raise ValueError(f"Unknown reduction {reduction}")
 
     # Reduce over the examples in the batch.
     if batch_reduction == "sum":

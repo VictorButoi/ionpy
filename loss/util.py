@@ -10,7 +10,7 @@ def _loss_module_from_func(name, loss_func):
         def __init__(self, **kwargs):
             super().__init__()
             self._func_kwargs = allbut(
-                get_default_kwargs(loss_func), ["y_pred", "y_true"]
+                get_default_kwargs(loss_func), ["y_pred", "y_true", "masked_inds"]
             )
             self._func_kwargs.update(kwargs)
             self.__dict__.update(self._func_kwargs)

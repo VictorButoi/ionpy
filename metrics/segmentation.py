@@ -24,7 +24,7 @@ def dice_score(
     reduction: Reduction = "mean",
     batch_reduction: Reduction = "mean",
     weights: Optional[Union[Tensor, List]] = None,
-    ignore_empty_labels: bool = True,
+    ignore_empty_labels: bool = False,
     from_logits: bool = False,
     ignore_index: Optional[int] = None,
 ) -> Tensor:
