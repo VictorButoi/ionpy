@@ -58,7 +58,6 @@ def submit_exps(
     base_cfg: dict,
     submit_cfg: dict,
     config_list: List[Config],
-    available_gpus: List[str] = ["0"],
     job_func: Optional[Callable] = None,
     experiment_class: Optional[Any] = None
 ):
@@ -85,8 +84,6 @@ def submit_exps(
                 pop_wandb_callback(cfg)
         # Add the modified config to the list.
         modified_cfgs.append(cfg)
-    # Define a few things for submission.
-    submit_cfg['available_gpus'] = available_gpus
     # Run the set of configs.
     slubmit.submit_jobs(
         job_func=job_func,
