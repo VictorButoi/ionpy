@@ -1,13 +1,19 @@
+# Misc imports
+import os
 import sys
+import time
 import copy
 import pathlib
 from typing import List
-import time
+from typing import Optional
+# Torch imports
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
 from torch.amp import GradScaler
-
+import torch.distributed as dist
+import torch.multiprocessing as mp
+from torch.utils.data import DataLoader
+# Local imports
 from ..nn.util import num_params, split_param_groups_by_weight_decay
 from ..util.ioutil import autosave
 from ..util.meter import MeterDict
@@ -167,7 +173,14 @@ class TrainExperiment(BaseExperiment):
         for callback in self.callbacks.get(callback_group, []):
             callback(**kwargs)
 
-    def run(self):
+    def run_distributed(self, rank):
+        WORLD_SIZE = torch.cuda.device_count()
+        mp.spawn(self.run,
+            args=WORLD_SIZE,
+            nprocs=WORLD_SIZE,
+            join=True)
+
+    def run(self, rank: Optional[int] = None, world_size: Optional[int] = None):
         print(f"Running {str(self)}")
         epochs: int = self.config["train.epochs"]
 
@@ -175,7 +188,7 @@ class TrainExperiment(BaseExperiment):
         if self.config.get('experiment.torch_mixed_precision', False):
             self.grad_scaler = GradScaler('cuda')
 
-        self.build_dataloader()
+        self.build_dataloader(rank, world_size)
         self.build_callbacks()
 
         last_epoch: int = self.properties.get("epoch", -1)
@@ -215,7 +228,7 @@ class TrainExperiment(BaseExperiment):
         self.checkpoint(tag="last")
         self.run_callbacks("wrapup")
 
-    def run_phase(self, phase, epoch):
+    def run_phase(self, phase, epoch, rank: Optional[int] = None):
         dl = getattr(self, f"{phase}_dl")
         grad_enabled = phase == "train"
 
@@ -230,13 +243,7 @@ class TrainExperiment(BaseExperiment):
 
         with torch.set_grad_enabled(grad_enabled):
             for batch_idx in range(len(dl)):
-                # # Time the data loading
-                # torch.cuda.synchronize() 
-                # t1 = time.time()
                 batch = next(iter_loader) # Doing this lets us time the data loading.
-                # torch.cuda.synchronize()
-                # t2 = time.time()
-                # print(f"Data loading time (ms):", (t2 - t1) * 1000)
 
                 outputs = self.run_step(
                     batch_idx=batch_idx,
@@ -244,7 +251,8 @@ class TrainExperiment(BaseExperiment):
                     backward=grad_enabled,
                     augmentation=augmentation,
                     epoch=epoch,
-                    phase=phase
+                    phase=phase,
+                    rank=rank
                 )
 
                 metrics = self.compute_metrics(outputs)
@@ -255,16 +263,21 @@ class TrainExperiment(BaseExperiment):
                     batch_idx=batch_idx, 
                     phase=phase
                 )
+        # If the rank isn't None, we are doing distributed training and need to accumulate.
+        if rank is not None:
+            # TODO: Make sure this is the loss from the entire epoch.
+            dist.all_reduce(None, op=dist.ReduceOp.SUM)
 
         metrics = {"phase": phase, "epoch": epoch, **meters.collect("mean")}
         self.metrics.log(metrics)
 
         return metrics
 
-    def run_step(self, batch_idx, batch, backward=True, augmentation=True, epoch=None):
+    def run_step(self, batch_idx, batch, backward=True, augmentation=True, epoch=None, rank: Optional[int] = None):
 
+        dev = self.device if rank is None else rank
         x, y = to_device(
-            batch, self.device, self.config.get("train.channels_last", False)
+            batch, dev, self.config.get("train.channels_last", False)
         )
 
         y_hat = self.model(x)
@@ -288,3 +301,14 @@ class TrainExperiment(BaseExperiment):
 
     def build_augmentations(self, load_aug_pipeline):
         pass
+
+    # FSDP methods
+    def setup_distributed(self, rank):
+        world_size = self.config["dist.world_size"]
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = self.port()
+        # TODO: "Make nccl an option from the config."
+        dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    
+    def cleanup():
+        dist.destroy_process_group()

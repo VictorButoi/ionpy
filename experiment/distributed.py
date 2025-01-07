@@ -1,11 +1,13 @@
-from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.distributed as dist
+# Misc imports
 import os
-from ionpy.experiment import TrainExperiment
-from ionpy.util.pipes import quiet_std
-from ionpy.util import ThunderDict, MetricsDict
-from torch.utils.data.distributed import DistributedSampler
+# Torch imports
+import torch.distributed as dist
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
+# Ionpy imports
+from ionpy.experiment import TrainExperiment
+from ionpy.util import ThunderDict, MetricsDict
 
 
 class DistTE(TrainExperiment):
@@ -73,13 +75,3 @@ class DistTE(TrainExperiment):
                 self.store = ThunderDict(tmpdirname + "/store")
 
                 super().run()
-
-    # def run_phase(self, phase, epoch):
-    #     if ("val" in phase or "test" in phase) and not self.is_master:
-    #         return
-    #     super().run_phase(phase, epoch)
-
-    def run(self):
-        raise ValueError("Use exp.run_distributed instead")
-
-        # TODO: timm warmup
