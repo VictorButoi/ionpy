@@ -173,14 +173,10 @@ class TrainExperiment(BaseExperiment):
         for callback in self.callbacks.get(callback_group, []):
             callback(**kwargs)
 
-    def run_distributed(self, rank):
-        WORLD_SIZE = torch.cuda.device_count()
-        mp.spawn(self.run,
-            args=WORLD_SIZE,
-            nprocs=WORLD_SIZE,
-            join=True)
-
-    def run(self, rank: Optional[int] = None, world_size: Optional[int] = None):
+    def run(
+        self,
+        world_size: Optional[int] = None, 
+    ):
         print(f"Running {str(self)}")
         epochs: int = self.config["train.epochs"]
 
@@ -208,22 +204,22 @@ class TrainExperiment(BaseExperiment):
             # Either we run a validation epoch first and then do a round of training...
             if not self.config['experiment'].get('val_first', False):
                 print(f"Start training epoch {epoch}.")
-                self.run_phase("train", epoch)
+                self.run_phase("train", epoch, rank=rank)
 
             # Evaluate the model on the validation set.
             if eval_freq > 0 and (epoch % eval_freq == 0 or epoch == epochs - 1):
                 print(f"Start validation round at {epoch}.")
-                self.run_phase("val", epoch)
+                self.run_phase("val", epoch, rank=rank)
 
             # ... or we run a training epoch first and then do a round of validation.
             if self.config['experiment'].get('val_first', False):
                 print(f"Start training epoch {epoch}.")
-                self.run_phase("train", epoch)
+                self.run_phase("train", epoch, rank=rank)
 
             if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
                 self.checkpoint()
 
-            self.run_callbacks("epoch", epoch=epoch)
+            self.run_callbacks("epoch", epoch=epoch, rank=rank)
 
         self.checkpoint(tag="last")
         self.run_callbacks("wrapup")
