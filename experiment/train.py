@@ -185,8 +185,6 @@ class TrainExperiment(BaseExperiment):
 
     def run(
         self,
-        rank: Optional[int] = None,
-        world_size: Optional[int] = None, 
     ):
         print(f"Running {str(self)}")
         epochs: int = self.config["train.epochs"]
@@ -215,27 +213,27 @@ class TrainExperiment(BaseExperiment):
             # Either we run a validation epoch first and then do a round of training...
             if not self.config['experiment'].get('val_first', False):
                 print(f"Start training epoch {epoch}.")
-                self.run_phase("train", epoch, rank=rank)
+                self.run_phase("train", epoch)
 
             # Evaluate the model on the validation set.
             if eval_freq > 0 and (epoch % eval_freq == 0 or epoch == epochs - 1):
                 print(f"Start validation round at {epoch}.")
-                self.run_phase("val", epoch, rank=rank)
+                self.run_phase("val", epoch)
 
             # ... or we run a training epoch first and then do a round of validation.
             if self.config['experiment'].get('val_first', False):
                 print(f"Start training epoch {epoch}.")
-                self.run_phase("train", epoch, rank=rank)
+                self.run_phase("train", epoch)
 
             if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
                 self.checkpoint()
 
-            self.run_callbacks("epoch", epoch=epoch, rank=rank)
+            self.run_callbacks("epoch", epoch=epoch)
 
         self.checkpoint(tag="last")
         self.run_callbacks("wrapup")
 
-    def run_phase(self, phase, epoch, rank: Optional[int] = None):
+    def run_phase(self, phase, epoch):
         dl = getattr(self, f"{phase}_dl")
         grad_enabled = phase == "train"
 
@@ -259,7 +257,6 @@ class TrainExperiment(BaseExperiment):
                     augmentation=augmentation,
                     epoch=epoch,
                     phase=phase,
-                    rank=rank
                 )
 
                 metrics = self.compute_metrics(outputs)
@@ -283,11 +280,9 @@ class TrainExperiment(BaseExperiment):
         phase=None,
         backward=True, 
         augmentation=True, 
-        rank: Optional[int] = None
     ):
-        dev = self.device if rank is None else rank
         batch = to_device(
-            batch, dev, self.config.get("train.channels_last", False)
+            batch, self.device, self.config.get("train.channels_last", False)
         )
 
         x, y = batch["img"], batch["label"]
@@ -314,14 +309,3 @@ class TrainExperiment(BaseExperiment):
 
     def build_augmentations(self, load_aug_pipeline):
         pass
-
-    # FSDP methods
-    def setup_distributed(self, rank):
-        world_size = self.config["dist.world_size"]
-        os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = self.port()
-        # TODO: "Make nccl an option from the config."
-        dist.init_process_group("nccl", rank=rank, world_size=world_size)
-    
-    def cleanup():
-        dist.destroy_process_group()
