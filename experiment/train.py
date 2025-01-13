@@ -46,10 +46,17 @@ class TrainExperiment(BaseExperiment):
     def build_data(self, load_data):
         data_cfg = self.config["data"].to_dict()
         dataset_constructor = data_cfg.pop("_class", None) or data_cfg.pop("_fn")
+        # Get the train and val transforms
+        train_transforms = data_cfg.pop("train_transforms", None) 
+        val_transforms = data_cfg.pop("val_transforms", None)
         dataset_cls = absolute_import(dataset_constructor)
         if load_data:
-            self.train_dataset = dataset_cls(split="train", **data_cfg)
-            self.val_dataset = dataset_cls(split="val", **data_cfg)
+            self.train_dataset = dataset_cls(
+                split="train", transforms=train_transforms, **data_cfg
+            )
+            self.val_dataset = dataset_cls(
+                split="val", transforms=val_transforms, **data_cfg
+            )
 
     def build_dataloader(self):
         assert self.config["dataloader.batch_size"] <= len(
@@ -64,6 +71,7 @@ class TrainExperiment(BaseExperiment):
         )
 
     def build_model(self, compile_model=False):
+        # Peek at the model class, if it is a Timm model then we need to 
         self.model = eval_config(self.config["model"])
         self.properties["num_params"] = num_params(self.model)
         # Used from MultiverSeg Code.
@@ -72,6 +80,8 @@ class TrainExperiment(BaseExperiment):
             self.compiled = True
         else:
             self.compiled = False
+        # Move the model to the device
+        self.to_device()
 
     def build_optim(self):
         optim_cfg = self.config["optim"].to_dict()
@@ -175,6 +185,7 @@ class TrainExperiment(BaseExperiment):
 
     def run(
         self,
+        rank: Optional[int] = None,
         world_size: Optional[int] = None, 
     ):
         print(f"Running {str(self)}")
@@ -184,7 +195,7 @@ class TrainExperiment(BaseExperiment):
         if self.config.get('experiment.torch_mixed_precision', False):
             self.grad_scaler = GradScaler('cuda')
 
-        self.build_dataloader(rank, world_size)
+        self.build_dataloader()
         self.build_callbacks()
 
         last_epoch: int = self.properties.get("epoch", -1)
@@ -259,24 +270,30 @@ class TrainExperiment(BaseExperiment):
                     batch_idx=batch_idx, 
                     phase=phase
                 )
-        # If the rank isn't None, we are doing distributed training and need to accumulate.
-        if rank is not None:
-            # TODO: Make sure this is the loss from the entire epoch.
-            dist.all_reduce(None, op=dist.ReduceOp.SUM)
-
         metrics = {"phase": phase, "epoch": epoch, **meters.collect("mean")}
         self.metrics.log(metrics)
 
         return metrics
 
-    def run_step(self, batch_idx, batch, backward=True, augmentation=True, epoch=None, rank: Optional[int] = None):
-
+    def run_step(
+        self, 
+        batch_idx, 
+        batch, 
+        epoch=None, 
+        phase=None,
+        backward=True, 
+        augmentation=True, 
+        rank: Optional[int] = None
+    ):
         dev = self.device if rank is None else rank
-        x, y = to_device(
+        batch = to_device(
             batch, dev, self.config.get("train.channels_last", False)
         )
 
+        x, y = batch["img"], batch["label"]
+
         y_hat = self.model(x)
+
         loss = self.loss_func(y_hat, y)
 
         if backward:
