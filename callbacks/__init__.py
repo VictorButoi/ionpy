@@ -10,7 +10,6 @@ from .epoch import (
     LogExpr,
     Timestamp,
 )
-
 from .setup import (
     Summary,
     Topology,
@@ -20,6 +19,7 @@ from .setup import (
 )
 from .debug import nvidia_smi, GPUStats
 from .img import ImgIO, ImgActivations
+from .visualize import ShowPredictions 
 from .profile import Throughput
 from .debug import inspect_job, InspectStack, TraceLine, TorchTraceback
 from .wrapup import S3Copy

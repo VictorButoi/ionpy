@@ -295,8 +295,14 @@ class TrainExperiment(BaseExperiment):
             loss.backward()
             self.optim.step()
             self.optim.zero_grad()
+        
+        forward_batch = {
+            "loss": loss, "x": x, "y_true": y, "y_pred": y_hat
+        }
+        # Run step-wise callbacks if you have them.
+        self.run_callbacks("step", batch=forward_batch)
 
-        return {"loss": loss, "y_true": y, "y_pred": y_hat}
+        return forward_batch
 
     def compute_metrics(self, outputs):
         metrics = {"loss": outputs["loss"].item()}
