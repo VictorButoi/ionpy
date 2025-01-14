@@ -1,8 +1,8 @@
 
 # ionpy imports
 from datetime import datetime
-from .util.ioutil import autosave
 # misc imports
+import yaml
 from pathlib import Path
 from datetime import datetime
 from pydantic import validate_arguments
@@ -43,8 +43,20 @@ def log_exp_config_objs(
     exp_root = Path(f"{submit_cfg['scratch_root']}/{submit_cfg['group']}/{mod_exp_name}")
 
     # Save the base config and the experiment config.
-    autosave(base_cfg, exp_root / "base.yml") # SAVE #1: Experiment config
-    autosave(exp_cfg, exp_root / "experiment.yml") # SAVE #1: Experiment config
+    dump_yaml(base_cfg, exp_root / "base.yml") # SAVE #1: Experiment config
+    dump_yaml(exp_cfg, exp_root / "experiment.yml") # SAVE #1: Experiment config
+
+
+def dump_yaml(data, path):
+    """
+    Writes 'data' to a YAML file at 'path'.
+    Creates parent directories if they don't exist.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open('w') as f:
+        # safe_dump is recommended to avoid executing arbitrary Python tags
+        yaml.safe_dump(data, f, sort_keys=False)
 
 
 def pop_wandb_callback(cfg):
