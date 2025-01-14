@@ -1,7 +1,7 @@
 
 # ionpy imports
 from datetime import datetime
-from ionpy.util.ioutil import autosave
+from .util.ioutil import autosave
 # misc imports
 from pathlib import Path
 from datetime import datetime

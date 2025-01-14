@@ -1,7 +1,6 @@
-# ionpy imports
+# Slite imports
 import slite.runner as slunner
 import slite.submit as slubmit 
-from ionpy.util import Config
 # misc imports
 from pydantic import validate_arguments
 from typing import List, Optional, Any, Callable
@@ -12,7 +11,7 @@ from .utils import log_exp_config_objs, submit_input_check, pop_wandb_callback
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def run_job(
     gpu: str,
-    config: Config,
+    config: dict,
     job_func: Callable,
     track_wandb: bool = False,
     show_examples: bool = False,
@@ -47,7 +46,7 @@ def run_job(
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def run_exp(
     gpu: str,
-    config: Config,
+    config: dict,
     experiment_class: Any,
     track_wandb: bool = False,
     show_examples: bool = False,
@@ -79,12 +78,12 @@ def run_exp(
     )
 
 
-@validate_arguments(config=dict(arbitrary_types_allowed=True))
+@validate_arguments
 def submit_exps(
     exp_cfg: dict,
     base_cfg: dict,
     submit_cfg: dict,
-    config_list: List[Config],
+    config_list: List[dict],
     job_func: Optional[Callable] = None,
     experiment_class: Optional[Any] = None
 ):
