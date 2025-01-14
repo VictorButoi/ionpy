@@ -8,10 +8,10 @@ from typing import List, Optional, Any, Callable
 from .utils import log_exp_config_objs, submit_input_check, pop_wandb_callback
 
 
-@validate_arguments(config=dict(arbitrary_types_allowed=True))
+@validate_arguments
 def run_job(
     gpu: str,
-    config: dict,
+    config: Any,
     job_func: Callable,
     track_wandb: bool = False,
     show_examples: bool = False,
@@ -43,10 +43,10 @@ def run_job(
     )
 
 
-@validate_arguments(config=dict(arbitrary_types_allowed=True))
+@validate_arguments
 def run_exp(
     gpu: str,
-    config: dict,
+    config: Any,
     experiment_class: Any,
     track_wandb: bool = False,
     show_examples: bool = False,

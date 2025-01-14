@@ -1,10 +1,12 @@
 # Torch imports
 import torch
+import torchvision.transforms as T
 # Misc imports
+import ast
 import numpy as np
-from typing import Literal
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from typing import Literal, Optional, Any
 
 
 class ShowPredictions:
@@ -15,18 +17,42 @@ class ShowPredictions:
         vis_type: Literal["classification", "segmentation"],
         col_wrap: int = 4,
         threshold: float = 0.5,
-        size_per_image: int = 5
+        size_per_image: int = 5,
+        denormalize: Optional[Any] = None
     ):
         self.col_wrap = col_wrap
         self.vis_type = vis_type
         self.threshold = threshold
         self.size_per_image = size_per_image
+        # Sometimes we normalize the intensity values so we need to denormalize them for visualization.
+        if denormalize is not None:
+            # Suppose you used these stats for normalization
+            mean = ast.literal_eval(denormalize['mean'])  # example: ImageNet
+            std = ast.literal_eval(denormalize['std'])
+            # Denormalization transform
+            self.denormalize = T.Normalize(
+                mean=[-m/s for m, s in zip(mean, std)],
+                std=[1/s for s in std]
+            )
+        else:
+            self.denormalize = lambda x: x
+
 
     def __call__(self, batch):
         if self.vis_type == "classification": 
-            ClassificationShowPreds(batch, col_wrap=self.col_wrap, threshold=self.threshold, size_per_image=self.size_per_image)
+            ClassificationShowPreds(
+                batch, 
+                col_wrap=self.col_wrap, 
+                threshold=self.threshold, 
+                size_per_image=self.size_per_image,
+                denormalize=self.denormalize
+            )
         elif self.vis_type == "segmentation":
-            SegmentationShowPreds(batch, threshold=self.threshold, size_per_image=self.size_per_image)
+            SegmentationShowPreds(
+                batch, 
+                threshold=self.threshold, 
+                size_per_image=self.size_per_image
+            )
         else:
             raise ValueError("Invalid vis_type. Must be 'classification' or 'segmentation'.")
 
@@ -36,55 +62,53 @@ def ClassificationShowPreds(
     col_wrap: int,
     threshold: float,
     size_per_image: int,
+    denormalize: Any
 ):
     # Transfer image and label to the cpu.
-    x = batch["x"].detach().cpu().numpy()
-    y = batch["y_true"].detach().cpu().numpy()
+    x = batch["x"]
+    y = batch["y_true"]
     y_hat = batch["y_pred"]
-    
     # Prints some metric stuff
     if "loss" in batch:
         print("Loss: ", batch["loss"].item())
-    
     # Get the predicted label
     if y_hat.shape[1] == 1:
         y_hat = (torch.sigmoid(y_hat) > threshold).astype(int)
     else:
         y_hat = torch.argmax(y_hat, axis=1)
-    y_hat = y_hat.detach().cpu().numpy()
-    
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
         img_cmap = None
-        x = x.transpose(0, 2, 3, 1).astype(int) # Move channel dimension to last.
+        x = denormalize(x)
+        x = x * 255
+        x = x.permute(0, 2, 3, 1).int() # Move channel dimension to last.
     else:
         img_cmap = "gray"
-
+    # Prepare the tensors for visualization as npdarrays.
+    x = x.detach().cpu().numpy()
+    y = y.detach().cpu().numpy()
+    y_hat = y_hat.detach().cpu().numpy()
+    # Prepare matplotlib objects.
     bs = x.shape[0]
     ncols = col_wrap
     nrows = int(np.ceil(bs / ncols))
     f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, nrows * size_per_image))
-
     # Go through each item in the batch.
     for b_idx in range(bs):
         col_idx = b_idx % ncols
         row_idx = b_idx // ncols
-
         if bs == 1:
             axarr.set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
-            im1 = axarr.imshow(x, cmap=img_cmap, interpolation='None')
+            im1 = axarr.imshow(x[b_idx], cmap=img_cmap, interpolation='None')
             f.colorbar(im1, ax=axarr, orientation='vertical')
-
         elif nrows == 1:
             axarr[col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
-            im1 = axarr[col_idx].imshow(x, cmap=img_cmap, interpolation='None')
+            im1 = axarr[col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
             f.colorbar(im1, ax=axarr[col_idx], orientation='vertical')
-
         else:
             axarr[row_idx, col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
             im1 = axarr[row_idx, col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
             f.colorbar(im1, ax=axarr[row_idx, col_idx], orientation='vertical')
-
     # Turn off all of the grids and axes in the subplot array
     for ax in axarr.flatten():
         ax.axis('off')
