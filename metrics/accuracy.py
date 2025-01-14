@@ -1,7 +1,9 @@
-import numpy as np
 import torch
-
-from torch import Tensor
+import numpy as np
+# local imports
+from .util import (
+    Reduction,
+)
 
 
 def correct(output, target, topk=(1,)):
@@ -88,5 +90,26 @@ def _accuracy(output, target, topk=(1,)):
     return res
 
 
-def accuracy(output, target):
-    return _accuracy(output, target)[0]
+def accuracy(
+    output, 
+    target,
+    positive_class_weight: float = 1.0,
+    batch_reduction: Reduction = "mean",
+):
+    maxk = max((1,))
+    _, pred = output.topk(maxk, 1, True, True)
+    pred = pred.t()
+    correct = pred.eq(target.view(1, -1).expand_as(pred)).float().squeeze(0)
+
+    if batch_reduction == "mean":
+        return correct.mean()
+    elif batch_reduction == "sum":
+        return correct.sum()
+    else:
+        weights_per_sample = torch.zeros_like(target, dtype=torch.float)
+        # If we want to balance the classes in binary classification then we can 
+        # assign a weight to each sample based on the target value.
+        weights_per_sample[target == 1] = positive_class_weight
+        weights_per_sample[target == 0] = 1 / positive_class_weight
+        # Return both the correct AND the weights
+        return correct, weights_per_sample

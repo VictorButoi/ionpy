@@ -20,9 +20,13 @@ class Meter:
     def add(self, datum: Numeric):
         pass
 
-    def addN(self, iterable: Numerics):
-        for datum in iterable:
-            self.add(datum)
+    def addN(self, iterable: Numerics, weights: Numerics = None):
+        if weights is not None:
+            for (datum, weight) in zip(iterable, weights):
+                self.add(datum, weight)
+        else:
+            for datum in iterable:
+                self.add(datum)
 
 
 class StatsMeter(Meter):
@@ -70,7 +74,7 @@ class StatsMeter(Meter):
             # S = (S1 + n1 * mu1 * mu1) + (S2 + n2 * mu2 * mu2) - n * mu * mu
             self.S = (self.S + old_n * old_mean**2) + (0 + weight * datum**2) - (self.n * self.mean**2)
 
-    def addN(self, iterable: Numerics, batch: bool = False):
+    def addN(self, iterable: Numerics, weights: Numerics = None, batch: bool = False):
         """Add N data to the stats
 
         Arguments:
@@ -86,7 +90,7 @@ class StatsMeter(Meter):
             )
             self.n, self.mean, self.S = add.n, add.mean, add.S
         else:
-            super().addN(iterable)
+            super().addN(iterable, weights=weights)
 
     def pop(self, datum: Numeric):
         if self.n == 0:
@@ -203,9 +207,19 @@ class MeterDict(dict):
         self._meter_type = meter_type
         super().__init__()
 
-    def update(self, data):
+    def update(self, data, weights=None):
         for label, value in data.items():
-            self[label].add(value)
+            if weights is not None and weights[label] is not None:
+                # If we have multiple data points then we need to addN them
+                if isinstance(value, list):
+                    self[label].addN(value, weights[label])
+                else:
+                    self[label].add(value, weights[label])
+            else:
+                self[label].add(value)
+
+    def add(self, label, value, weight=None):
+        self[label].add(value, weight=weight)
 
     def __setitem__(self, key, value):
         if key not in self:
@@ -222,9 +236,6 @@ class MeterDict(dict):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({repr(dict(self))})"
-
-    def add(self, label, value):
-        self[label].add(value)
 
 
 class MedianMeter(Meter):

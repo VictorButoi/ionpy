@@ -243,7 +243,7 @@ class TrainExperiment(BaseExperiment):
 
         self.model.train(grad_enabled)  # For dropout, batchnorm, &c
 
-        meters = MeterDict()
+        phase_meters = MeterDict()
         iter_loader = iter(dl)
 
         with torch.set_grad_enabled(grad_enabled):
@@ -258,19 +258,21 @@ class TrainExperiment(BaseExperiment):
                     epoch=epoch,
                     phase=phase,
                 )
+                
+                batch_metrics, batch_metric_weights = self.compute_metrics(outputs)
 
-                metrics = self.compute_metrics(outputs)
-                meters.update(metrics)
+                phase_meters.update(batch_metrics, weights=batch_metric_weights)
+
                 self.run_callbacks(
                     "batch", 
                     epoch=epoch, 
                     batch_idx=batch_idx, 
                     phase=phase
                 )
-        metrics = {"phase": phase, "epoch": epoch, **meters.collect("mean")}
-        self.metrics.log(metrics)
+        phase_metrics = {"phase": phase, "epoch": epoch, **phase_meters.collect("mean")}
+        self.metrics.log(phase_metrics)
 
-        return metrics
+        return phase_metrics
 
     def run_step(
         self, 
@@ -306,12 +308,24 @@ class TrainExperiment(BaseExperiment):
 
     def compute_metrics(self, outputs):
         metrics = {"loss": outputs["loss"].item()}
+        metric_weights = {"loss": None}
         for name, fn in self.metric_fns.items():
-            value = fn(outputs["y_pred"], outputs["y_true"])
-            if isinstance(value, torch.Tensor):
-                value = value.item()
-            metrics[name] = value
-        return metrics
+            value_obj = fn(outputs["y_pred"], outputs["y_true"])
+            if isinstance(value_obj, tuple):
+                # Place both the values and the weights from the tuple. Note that
+                # that if we supply the weights it has to be the unreduced loss.
+                value, weight = value_obj
+                metrics[name] = value.tolist() 
+                metric_weights[name] = weight.tolist()
+            else:
+                # If the value is a Tensor AND is 1-dimensional, then we can convert it to a float.
+                if isinstance(value_obj, torch.Tensor) and len(value_obj.shape) == 1:
+                    value_obj = value_obj.item()
+                # Place the reduced value_obj into the metrics dictionary, None for metric
+                # weight as we haven't returned per-sample weights.
+                metrics[name] = value_obj
+                metric_weights[name] = None
+        return metrics, metric_weights
 
     def build_augmentations(self, load_aug_pipeline):
         pass
