@@ -270,6 +270,7 @@ class TrainExperiment(BaseExperiment):
                     phase=phase
                 )
         phase_metrics = {"phase": phase, "epoch": epoch, **phase_meters.collect("mean")}
+
         self.metrics.log(phase_metrics)
 
         return phase_metrics
@@ -319,7 +320,7 @@ class TrainExperiment(BaseExperiment):
                 metric_weights[name] = weight.tolist()
             else:
                 # If the value is a Tensor AND is 1-dimensional, then we can convert it to a float.
-                if isinstance(value_obj, torch.Tensor) and len(value_obj.shape) == 1:
+                if isinstance(value_obj, torch.Tensor):
                     value_obj = value_obj.item()
                 # Place the reduced value_obj into the metrics dictionary, None for metric
                 # weight as we haven't returned per-sample weights.

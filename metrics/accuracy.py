@@ -94,7 +94,7 @@ def accuracy(
     output, 
     target,
     positive_class_weight: float = 1.0,
-    batch_reduction: Reduction = "mean",
+    batch_reduction: Reduction = "mean"
 ):
     maxk = max((1,))
     _, pred = output.topk(maxk, 1, True, True)
