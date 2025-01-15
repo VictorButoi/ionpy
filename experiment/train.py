@@ -46,16 +46,25 @@ class TrainExperiment(BaseExperiment):
     def build_data(self, load_data):
         data_cfg = self.config["data"].to_dict()
         dataset_constructor = data_cfg.pop("_class", None) or data_cfg.pop("_fn")
-        # Get the train and val transforms
+        dataset_cls = absolute_import(dataset_constructor)
+        # Get specific dataset arguments if they exist.
+        train_data_kwargs = data_cfg.pop("train_kwargs", {})
+        val_data_kwargs = data_cfg.pop("train_kwargs", {})
+        # Get the train and val transforms.
         train_transforms = data_cfg.pop("train_transforms", None) 
         val_transforms = data_cfg.pop("val_transforms", None)
-        dataset_cls = absolute_import(dataset_constructor)
         if load_data:
             self.train_dataset = dataset_cls(
-                split="train", transforms=train_transforms, **data_cfg
+                split="train", 
+                transforms=train_transforms, 
+                **data_cfg,
+                **train_data_kwargs
             )
             self.val_dataset = dataset_cls(
-                split="val", transforms=val_transforms, **data_cfg
+                split="val", 
+                transforms=val_transforms, 
+                **data_cfg,
+                **val_data_kwargs
             )
 
     def build_dataloader(self):

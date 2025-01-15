@@ -83,7 +83,7 @@ def submit_exps(
     exp_cfg: dict,
     base_cfg: dict,
     submit_cfg: dict,
-    config_list: List[dict],
+    config_list: List,
     job_func: Optional[Callable] = None,
     experiment_class: Optional[Any] = None
 ):
