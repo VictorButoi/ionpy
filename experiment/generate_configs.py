@@ -73,10 +73,6 @@ def get_training_configs(
         **listify_dict(flat_exp_cfg_dict)
     }
 
-    # Make sure that our string tuples are converted to actual tuples.
-    base_cfg_dict = base_cfg.to_dict()
-    base_cfg_dict = Config(tuplize_str_dict(base_cfg_dict))
-
     # Get the configs
     cfgs = get_option_product(exp_name, option_set, base_cfg)
 
@@ -319,7 +315,7 @@ def get_option_product(
     base_cfg
 ):
     # If option_set is not a list, make it a list
-    cfgs = []
+    cfg_list = []
     # Get all of the keys that have length > 1 (will be turned into different options)
     varying_keys = [key for key, value in option_set.items() if len(value) > 1]
     # Iterate through all of the different options
@@ -335,8 +331,13 @@ def get_option_product(
         cfg = base_cfg.update([cfg_update, cfg_name_args])
         # Verify it's a valid config
         check_missing(cfg)
-        cfgs.append(cfg)
-    return cfgs
+        # Make sure that our string tuples are converted to actual tuples.
+        cfg_dict = cfg.to_dict()
+        tuplized_cfg = Config(tuplize_str_dict(cfg_dict))
+        # Finally, we need to 'tuplize' it, which means that we conver the tuples 
+        # hiding as string into actual tuples.
+        cfg_list.append(tuplized_cfg)
+    return cfg_list
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
