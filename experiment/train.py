@@ -1,17 +1,11 @@
 # Misc imports
-import os
-import sys
-import time
 import copy
 import pathlib
 from typing import List
-from typing import Optional
 # Torch imports
 import torch
 from torch import nn
 from torch.amp import GradScaler
-import torch.distributed as dist
-import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
 # Local imports
 from ..nn.util import num_params, split_param_groups_by_weight_decay
