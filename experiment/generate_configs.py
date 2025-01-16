@@ -5,13 +5,33 @@ from ionpy.experiment.util import generate_tuid
 from ionpy.util.config import check_missing, HDict, valmap, config_digest
 # misc imports
 import os
+import ast
 import yaml
 import itertools
 import numpy as np
 from pathlib import Path
+from pprint import pprint
 from datetime import datetime
 from pydantic import validate_arguments
 from typing import List, Any, Optional, Callable
+
+
+def tuplize_str_dict(d):
+    for key, val in d.items():
+        # If the value is NOT a dict, then we need to check if 
+        # it a tuple hiding as a string.
+        if not isinstance(val, dict):
+            if isinstance(val, list):
+               for vi_idx, val_item in enumerate(val):
+                    if isinstance(val_item, dict):
+                        d[key][vi_idx] = tuplize_str_dict(val_item)
+                    elif isinstance(val_item, str) and val_item[0] == '(' and val_item[-1] == ')':
+                        d[key][vi_idx] = ast.literal_eval(val_item)
+            elif isinstance(val, str) and val[0] == '(' and val[-1] == ')':
+                d[key] = ast.literal_eval(val)
+        else:
+            d[key] = tuplize_str_dict(val)
+    return d
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -52,6 +72,10 @@ def get_training_configs(
         'experiment.seed': [seed + seed_idx for seed_idx in range(seed_range)],
         **listify_dict(flat_exp_cfg_dict)
     }
+
+    # Make sure that our string tuples are converted to actual tuples.
+    base_cfg_dict = base_cfg.to_dict()
+    base_cfg_dict = Config(tuplize_str_dict(base_cfg_dict))
 
     # Get the configs
     cfgs = get_option_product(exp_name, option_set, base_cfg)
