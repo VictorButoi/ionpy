@@ -26,13 +26,10 @@ class ShowPredictions:
         self.size_per_image = size_per_image
         # Sometimes we normalize the intensity values so we need to denormalize them for visualization.
         if denormalize is not None:
-            # Suppose you used these stats for normalization
-            mean = ast.literal_eval(denormalize['mean'])  # example: ImageNet
-            std = ast.literal_eval(denormalize['std'])
             # Denormalization transform
             self.denormalize = T.Normalize(
-                mean=[-m/s for m, s in zip(mean, std)],
-                std=[1/s for s in std]
+                mean=[-m/s for m, s in zip(denormalize['mean'], denormalize['std'])],
+                std=[1/s for s in denormalize['std']]
             )
         else:
             self.denormalize = lambda x: x
