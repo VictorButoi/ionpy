@@ -66,6 +66,11 @@ def get_training_configs(
     seed = flat_exp_cfg_dict.pop('experiment.seed', 40)
     seed_range = flat_exp_cfg_dict.pop('experiment.seed_range', 1)
 
+    # This is a required key. We want to get all of the models and vary everything else.
+    pretrained_dir_list = flat_exp_cfg_dict.pop('model.pretrained_dir', None) 
+    if pretrained_dir_list is not None:
+        flat_exp_cfg_dict['model.pretrained_dir'] = gather_pretrained_models(pretrained_dir_list) 
+
     # Create the ablation options.
     option_set = {
         'log.root': [str(train_exp_root)],
@@ -146,7 +151,7 @@ def get_inference_configs(
         # We evaluate this by seeing if 'submitit' is in the base model path.
         base_model_group_dir = Path(run_opt_dict.pop('base_model')[0])
         if 'submitit' in os.listdir(base_model_group_dir):
-            model_set  = gather_exp_paths(str(base_model_group_dir)) 
+            model_set  = gather_valid_paths(str(base_model_group_dir)) 
         else:
             model_set = [str(base_model_group_dir)]
         # Append these to the list of configs and roots.
@@ -211,16 +216,7 @@ def get_restart_configs(
         
     # This is a required key. We want to get all of the models and vary everything else.
     pretrained_dir_list = restart_cfg_dict.pop('train.pretrained_dir') 
-    if not isinstance(pretrained_dir_list, list):
-        pretrained_dir_list = [pretrained_dir_list]
-
-    # Now we need to go through all the pre-trained models and gather THEIR configs.
-    all_pre_models = []
-    for pre_model_dir in pretrained_dir_list:
-        if 'submitit' in os.listdir(pre_model_dir):
-            all_pre_models.append(pre_model_dir)
-        else:
-            all_pre_models += gather_exp_paths(pre_model_dir) 
+    all_pre_models = gather_pretrained_models(pretrained_dir_list) 
 
     # Listify the dict for the product.
     listy_pt_cfg_dict = {
@@ -354,7 +350,20 @@ def generate_config_uuids(config_list: List[Config]):
     return processed_cfgs
 
 
-def gather_exp_paths(root):
+def  gather_pretrained_models(pretrained_dir_list):
+    if not isinstance(pretrained_dir_list, list):
+        pretrained_dir_list = [pretrained_dir_list]
+    # Now we need to go through all the pre-trained models and gather THEIR configs.
+    all_pre_models = []
+    for pre_model_dir in pretrained_dir_list:
+        if 'submitit' in os.listdir(pre_model_dir):
+            all_pre_models.append(pre_model_dir)
+        else:
+            all_pre_models += gather_valid_paths(pre_model_dir) 
+    return all_pre_models
+
+
+def gather_valid_paths(root):
     # For ensembles, define the root dir.
     run_names = os.listdir(root)
     # NOTE: Not the best way to do this, but we need to skip over some files/directories.

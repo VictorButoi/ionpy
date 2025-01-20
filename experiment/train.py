@@ -9,12 +9,12 @@ from torch import nn
 from torch.amp import GradScaler
 from torch.utils.data import DataLoader
 # Local imports
-from ..nn.util import num_params, split_param_groups_by_weight_decay
+from .base import BaseExperiment
 from ..util.ioutil import autosave
 from ..util.meter import MeterDict
 from ..util.torchutils import to_device
-from .base import BaseExperiment
 from .util import absolute_import, eval_config
+from ..nn.util import num_params, split_param_groups_by_weight_decay
 
 
 class TrainExperiment(BaseExperiment):
