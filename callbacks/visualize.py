@@ -48,7 +48,8 @@ class ShowPredictions:
             SegmentationShowPreds(
                 batch, 
                 threshold=self.threshold, 
-                size_per_image=self.size_per_image
+                size_per_image=self.size_per_image,
+                denormalize=self.denormalize
             )
         else:
             raise ValueError("Invalid vis_type. Must be 'classification' or 'segmentation'.")
@@ -118,6 +119,7 @@ def SegmentationShowPreds(
     batch, 
     threshold: float,
     size_per_image: int,
+    denormalize: Any
 ):
     # If our pred has a different batchsize than our inputs, we
     # need to tile the input and label to match the batchsize of
@@ -152,10 +154,13 @@ def SegmentationShowPreds(
         cmap_name = "seg_map"
         label_cm = mcolors.LinearSegmentedColormap.from_list(cmap_name, colors, N=num_pred_classes)
 
+    print("X shape: ", x.shape)
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
-        x = x.int()
         img_cmap = None
+        x = denormalize(x)
+        x = x * 255
+        x = x.permute(0, 2, 3, 1).int() # Move channel dimension to last.
     else:
         img_cmap = "gray"
 
@@ -190,16 +195,12 @@ def SegmentationShowPreds(
     
 
     # Squeeze all tensors in prep.
-    x = x.permute(0, 2, 3, 1).numpy().squeeze() # Move channel dimension to last.
+    x = x.numpy().squeeze() # Move channel dimension to last.
     y = y.numpy().squeeze()
     y_hard = y_hard.numpy().squeeze()
     y_hat = y_hat.squeeze()
-
-    if bs == 1:
-        ncols = 7
-    else:
-        ncols = 4
-    f, axarr = plt.subplots(nrows=bs, ncols=ncols, figsize=(ncols * size_per_image, bs*size_per_image))
+    # We plot four images per batch item.
+    f, axarr = plt.subplots(nrows=bs, ncols=4, figsize=(4 * size_per_image, bs*size_per_image))
 
     # Go through each item in the batch.
     for b_idx in range(bs):
@@ -212,25 +213,18 @@ def SegmentationShowPreds(
             im2 = axarr[1].imshow(y, cmap=label_cm, interpolation='None')
             f.colorbar(im2, ax=axarr[1], orientation='vertical')
 
-            axarr[2].set_title("Hard Prediction")
-            im3 = axarr[2].imshow(y_hard, cmap=label_cm, interpolation='None')
-            f.colorbar(im3, ax=axarr[2], orientation='vertical')
-
             if len(y_hat.shape) == 3:
                 max_probs = torch.max(y_hat, dim=0)[0]
             else:
                 assert len(y_hat.shape) == 2, "Soft prediction must be 2D if not 3D."
                 max_probs = y_hat
+            axarr[2].set_title("Max Probs")
+            im4 = axarr[2].imshow(max_probs, cmap='gray', vmin=0.0, vmax=1.0, interpolation='None')
+            f.colorbar(im4, ax=axarr[2], orientation='vertical')
 
-            axarr[3].set_title("Max Probs")
-            im4 = axarr[3].imshow(max_probs, cmap='gray', vmin=0.0, vmax=1.0, interpolation='None')
-            f.colorbar(im4, ax=axarr[3], orientation='vertical')
-            # turn off the axis and grid
-            for x_idx, ax in enumerate(axarr):
-                # Don't turn off the last axis
-                if x_idx != len(axarr) - 1:
-                    # ax.axis('off')
-                    ax.grid(False)
+            axarr[3].set_title("Hard Prediction")
+            im3 = axarr[3].imshow(y_hard, cmap=label_cm, interpolation='None')
+            f.colorbar(im3, ax=axarr[3], orientation='vertical')
         else:
             axarr[b_idx, 0].set_title("Image")
             im1 = axarr[b_idx, 0].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
@@ -248,8 +242,8 @@ def SegmentationShowPreds(
             im4 = axarr[b_idx, 3].imshow(y_hard[b_idx], cmap=label_cm, interpolation='None')
             f.colorbar(im4, ax=axarr[b_idx, 3], orientation='vertical')
 
-            # turn off the axis and grid
-            for ax in axarr[b_idx]:
-                ax.axis('off')
-                ax.grid(False)
+        # turn off the axis and grid for all of the subplots.
+        for ax in axarr.flatten():
+            ax.axis('off')
+            ax.grid(False)
     plt.show()
