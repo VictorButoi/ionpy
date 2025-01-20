@@ -75,7 +75,6 @@ class TrainExperiment(BaseExperiment):
         )
 
     def build_model(self, compile_model=False):
-        # Peek at the model class, if it is a Timm model then we need to 
         self.model = eval_config(self.config["model"])
         self.properties["num_params"] = num_params(self.model)
         print("Number of parameters:", self.properties["num_params"])
@@ -85,6 +84,17 @@ class TrainExperiment(BaseExperiment):
             self.compiled = True
         else:
             self.compiled = False
+        
+        # If the pretrained_dir exists, then load the model from the directory.
+        pretrained_dir = self.config["train"].get("pretrained_dir", None)
+        if pretrained_dir is not None:
+            path = pathlib.Path(pretrained_dir)
+            chkpt_name = self.config["train"].get("load_chkpt", "last")
+            weights_path = path / "checkpoints" / f"{chkpt_name}.pt"
+            with weights_path.open("rb") as f:
+                state = torch.load(f, map_location=self.device, weights_only=True)
+            self.model.load_state_dict(state["model"])
+            print(f"Loaded model from: {weights_path}")
         # Move the model to the device
         self.to_device()
 
@@ -100,10 +110,22 @@ class TrainExperiment(BaseExperiment):
             )
         else:
             optim_cfg["params"] = self.model.parameters()
-
         self.optim = eval_config(optim_cfg)
-        # Zero out the gradients as initialization 
-        self.optim.zero_grad()
+
+        # If the pretrained_dir exists, then load the optimizer state 
+        # dict.
+        pretrained_dir = self.config["train"].get("pretrained_dir", None)
+        if pretrained_dir is not None:
+            path = pathlib.Path(pretrained_dir)
+            chkpt_name = self.config["train"].get("load_chkpt", "last")
+            weights_path = path / "checkpoints" / f"{chkpt_name}.pt"
+            with weights_path.open("rb") as f:
+                state = torch.load(f, map_location=self.device, weights_only=True)
+            self.optim.load_state_dict(state["optim"])
+            print(f"Loaded optimizer from: {weights_path}")
+        else:
+            # Zero out the gradients as initialization 
+            self.optim.zero_grad()
 
     def build_loss(self):
         self.loss_func = eval_config(self.config["loss_func"])

@@ -187,7 +187,7 @@ def get_inference_configs(
 def get_restart_configs(
     exp_cfg: dict,
     base_cfg: Config,
-    cfg_root: Path,
+    config_root: Path,
     scratch_root: Path,
     add_date: bool = True,
 ): 
@@ -202,7 +202,7 @@ def get_restart_configs(
     # If we are changing aspects of the dataset, we need to update the base config.
     if 'data._class' in restart_cfg_dict:
         # Add the dataset specific details.
-        dataset_cfg_file = cfg_root / 'training' / f"{restart_cfg_dict['data._class'].split('.')[-1]}.yaml"
+        dataset_cfg_file = config_root / 'training' / f"{restart_cfg_dict['data._class'].split('.')[-1]}.yaml"
         if dataset_cfg_file.exists():
             with open(dataset_cfg_file, 'r') as d_file:
                 dataset_train_cfg = yaml.safe_load(d_file)
@@ -218,9 +218,9 @@ def get_restart_configs(
     all_pre_models = []
     for pre_model_dir in pretrained_dir_list:
         if 'submitit' in os.listdir(pre_model_dir):
-            all_pre_models += gather_exp_paths(pre_model_dir) 
-        else:
             all_pre_models.append(pre_model_dir)
+        else:
+            all_pre_models += gather_exp_paths(pre_model_dir) 
 
     # Listify the dict for the product.
     listy_pt_cfg_dict = {
