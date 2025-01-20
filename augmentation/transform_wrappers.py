@@ -7,12 +7,18 @@ import torchvision.transforms as transforms
 
 def init_torch_transforms(transform_listt):
     transform_list = initialize_transforms(transform_listt)
-    return transforms.Compose(transform_list)
+    if transform_list is None:
+        return None
+    else:
+        return transforms.Compose(transform_list)
 
 
 def init_album_transforms(transform_list):
     transform_list = initialize_transforms(transform_list)
-    return A.Compose(transform_list)
+    if transform_list is None:
+        return None
+    else:
+        return A.Compose(transform_list)
 
 
 def initialize_transforms(transform_list):

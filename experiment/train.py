@@ -1,4 +1,5 @@
 # Misc imports
+import time
 import copy
 import pathlib
 from typing import List
@@ -77,6 +78,7 @@ class TrainExperiment(BaseExperiment):
         # Peek at the model class, if it is a Timm model then we need to 
         self.model = eval_config(self.config["model"])
         self.properties["num_params"] = num_params(self.model)
+        print("Number of parameters:", self.properties["num_params"])
         # Used from MultiverSeg Code.
         if torch.__version__ >= "2.0.0" and compile_model:
             self.model = torch.compile(self.model)
@@ -251,8 +253,16 @@ class TrainExperiment(BaseExperiment):
 
         with torch.set_grad_enabled(grad_enabled):
             for batch_idx in range(len(dl)):
+                # We want to time each part of our pipeline to see where the bottleneck is.
+                # torch.cuda.synchronize()
+                # t1 = time.time()
                 batch = next(iter_loader) # Doing this lets us time the data loading.
+                # torch.cuda.synchronize()
+                # t2 = time.time()
+                # print("Data loading time:", t2 - t1)
 
+                # torch.cuda.synchronize()
+                # t1 = time.time()
                 outputs = self.run_step(
                     batch_idx=batch_idx,
                     batch=batch,
@@ -261,8 +271,16 @@ class TrainExperiment(BaseExperiment):
                     epoch=epoch,
                     phase=phase,
                 )
+                # torch.cuda.synchronize()
+                # t2 = time.time()
+                # print("Forward pass + backwards pass time:", t2 - t1)
                 
+                # torch.cuda.synchronize()
+                # t1 = time.time()
                 batch_metrics, batch_metric_weights = self.compute_metrics(outputs)
+                # torch.cuda.synchronize()
+                # t2 = time.time()
+                # print("Compute Metrics time:", t2 - t1)
 
                 phase_meters.update(batch_metrics, weights=batch_metric_weights)
 
