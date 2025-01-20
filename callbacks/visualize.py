@@ -88,7 +88,7 @@ def ClassificationShowPreds(
     y_hat = y_hat.detach().cpu().numpy()
     # Prepare matplotlib objects.
     bs = x.shape[0]
-    ncols = col_wrap
+    ncols = min(bs, col_wrap)
     nrows = int(np.ceil(bs / ncols))
     f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, nrows * size_per_image))
     # Go through each item in the batch.
@@ -108,7 +108,11 @@ def ClassificationShowPreds(
             im1 = axarr[row_idx, col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
             f.colorbar(im1, ax=axarr[row_idx, col_idx], orientation='vertical')
     # Turn off all of the grids and axes in the subplot array
-    for ax in axarr.flatten():
+    if not isinstance(axarr, np.ndarray):
+        all_ax = [axarr]
+    else:
+        all_ax = axarr.flatten()
+    for ax in all_ax:
         ax.axis('off')
         ax.grid(False)
 
@@ -241,9 +245,12 @@ def SegmentationShowPreds(
             axarr[b_idx, 3].set_title("Hard Prediction")
             im4 = axarr[b_idx, 3].imshow(y_hard[b_idx], cmap=label_cm, interpolation='None')
             f.colorbar(im4, ax=axarr[b_idx, 3], orientation='vertical')
-
-        # turn off the axis and grid for all of the subplots.
-        for ax in axarr.flatten():
-            ax.axis('off')
-            ax.grid(False)
+    # Turn off all of the grids and axes in the subplot array
+    if not isinstance(axarr, np.ndarray):
+        all_ax = [axarr]
+    else:
+        all_ax = axarr.flatten()
+    for ax in all_ax:
+        ax.axis('off')
+        ax.grid(False)
     plt.show()
