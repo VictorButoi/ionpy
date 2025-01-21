@@ -158,7 +158,6 @@ def SegmentationShowPreds(
         cmap_name = "seg_map"
         label_cm = mcolors.LinearSegmentedColormap.from_list(cmap_name, colors, N=num_pred_classes)
 
-    print("X shape: ", x.shape)
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
         img_cmap = None

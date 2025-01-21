@@ -80,10 +80,10 @@ def run_exp(
 
 @validate_arguments
 def submit_exps(
+    cfg_list: List,
     exp_cfg: dict,
     base_cfg: dict,
     submit_cfg: dict,
-    config_list: List,
     job_func: Optional[Callable] = None,
     experiment_class: Optional[Any] = None
 ):
@@ -97,7 +97,7 @@ def submit_exps(
     )
     # Modify a few things relating to callbacks.
     modified_cfgs = [] 
-    for config in config_list:
+    for config in cfg_list:
         cfg = config.to_dict()
         if "callbacks" in cfg:
             # Get the config as a dictionary.
