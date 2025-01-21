@@ -235,7 +235,13 @@ def get_restart_configs(
         pt_listy_cfg_dict['train.pretrained_dir'] = [pt_dir] # Put the pre-trained model back in.
         # Update the pt_exp_cfg with the restart_cfg.
         pt_restart_base_cfg = pt_exp_cfg.update([base_cfg])
-        pt_cfgs = get_option_product(exp_name, pt_listy_cfg_dict, pt_restart_base_cfg)
+        # Get the different options for this pre-trained model.
+        pt_cfgs = get_option_product(
+            exp_name, 
+            pt_listy_cfg_dict, 
+            pt_restart_base_cfg, 
+            add_wandb_string=False
+        )
         # Append the list of configs for this pre-trained model.
         cfgs += pt_cfgs
 
@@ -308,7 +314,8 @@ def proc_cfg_name(
 def get_option_product(
     exp_name,
     option_set,
-    base_cfg
+    base_cfg,
+    add_wandb_string: bool = True
 ):
     # If option_set is not a list, make it a list
     cfg_list = []
@@ -323,8 +330,11 @@ def get_option_product(
                 cfg_update[key] = [cfg_update[key]]
         # Get the name that will be used for WANDB tracking and update the base with
         # this version of the experiment.
-        cfg_name_args = proc_cfg_name(exp_name, varying_keys, cfg_update)
-        cfg = base_cfg.update([cfg_update, cfg_name_args])
+        if add_wandb_string:
+            cfg_name_args = proc_cfg_name(exp_name, varying_keys, cfg_update)
+            cfg = base_cfg.update([cfg_update, cfg_name_args])
+        else:
+            cfg = base_cfg.update([cfg_update])
         # Verify it's a valid config
         check_missing(cfg)
         # Make sure that our string tuples are converted to actual tuples.
