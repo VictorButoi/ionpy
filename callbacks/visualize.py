@@ -282,6 +282,8 @@ def ReconstructionShowPreds(
         # First we process the image for visualization.
         x = proc_rgb_image(x, denormalize_fn=denormalize)
         y_hat = proc_rgb_image(y_hat, denormalize_fn=denormalize)
+        # Clip y_hat to be between 0 and 255.
+        y_hat = torch.clamp(y_hat, 0, 255)
     else:
         img_cmap = "gray"
 

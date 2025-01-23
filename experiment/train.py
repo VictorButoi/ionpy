@@ -354,6 +354,8 @@ class TrainExperiment(BaseExperiment):
         metrics = {"loss": outputs["loss"].item()}
         metric_weights = {"loss": None}
         for name, fn in self.metric_fns.items():
+            print("Ypred shape:", outputs["y_pred"].shape)
+            print("Ytrue shape:", outputs["y_true"].shape)
             value_obj = fn(outputs["y_pred"], outputs["y_true"])
             if isinstance(value_obj, tuple):
                 # Place both the values and the weights from the tuple. Note that
