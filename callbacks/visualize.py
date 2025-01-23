@@ -51,6 +51,12 @@ class ShowPredictions:
                 size_per_image=self.size_per_image,
                 denormalize=self.denormalize
             )
+        elif self.vis_type == "reconstruction":
+            ReconstructionShowPreds(
+                batch, 
+                size_per_image=self.size_per_image,
+                denormalize=self.denormalize
+            )
         else:
             raise ValueError("Invalid vis_type. Must be 'classification' or 'segmentation'.")
 
@@ -253,3 +259,69 @@ def SegmentationShowPreds(
         ax.axis('off')
         ax.grid(False)
     plt.show()
+
+
+def ReconstructionShowPreds(
+    batch, 
+    size_per_image: int,
+    denormalize: Any
+):
+    x = batch["x"].detach().cpu()
+
+    # Prints some metric stuff
+    if "loss" in batch:
+        print("Loss: ", batch["loss"].item())
+
+    # Get the predicted label
+    y_hat = batch["y_pred"].detach().cpu()
+    bs = x.shape[0]
+
+    # If x is rgb (has 3 input channels)
+    if x.shape[1] == 3:
+        img_cmap = None
+        # First we process the image for visualization.
+        x = proc_rgb_image(x, denormalize_fn=denormalize)
+        y_hat = proc_rgb_image(y_hat, denormalize_fn=denormalize)
+    else:
+        img_cmap = "gray"
+
+    # Squeeze all tensors in prep.
+    x = x.numpy().squeeze() # Move channel dimension to last.
+    y_hat = y_hat.squeeze()
+    # We plot four images per batch item.
+    f, axarr = plt.subplots(nrows=2, ncols=bs, figsize=(bs * size_per_image, 4 * size_per_image))
+
+    # Go through each item in the batch.
+    for b_idx in range(bs):
+        if bs == 1:
+            axarr[0].set_title("Image")
+            im1 = axarr[0].imshow(x, cmap=img_cmap, interpolation='None')
+            f.colorbar(im1, ax=axarr[0], orientation='vertical')
+
+            axarr[1].set_title("Pred Reconstruction")
+            im2 = axarr[1].imshow(y_hat, cmap=img_cmap, interpolation='None')
+            f.colorbar(im2, ax=axarr[1], orientation='vertical')
+        else:
+            axarr[0, b_idx].set_title("Image")
+            im1 = axarr[0, b_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
+            f.colorbar(im1, ax=axarr[0, b_idx], orientation='vertical')
+
+            axarr[1, b_idx].set_title("Pred Reconstruction")
+            im2 = axarr[1, b_idx].imshow(y_hat[b_idx], cmap=img_cmap, interpolation='None')
+            f.colorbar(im2, ax=axarr[1, b_idx], orientation='vertical')
+    # Turn off all of the grids and axes in the subplot array
+    if not isinstance(axarr, np.ndarray):
+        all_ax = [axarr]
+    else:
+        all_ax = axarr.flatten()
+    for ax in all_ax:
+        ax.axis('off')
+        ax.grid(False)
+    plt.show()
+
+
+def proc_rgb_image(raw_x, denormalize_fn):
+    proc_x = denormalize_fn(raw_x)
+    proc_x = proc_x * 255
+    proc_x = proc_x.permute(0, 2, 3, 1).int() # Move channel dimension to last.
+    return proc_x 
