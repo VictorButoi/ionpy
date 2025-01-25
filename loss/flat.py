@@ -48,4 +48,5 @@ def flatten_loss_module(loss_module, keep_channels=False):
 
 
 FlatMSELoss = flatten_loss_module(nn.MSELoss)
+FlatMAELoss = flatten_loss_module(nn.L1Loss)
 flat_mse_loss = flatten_loss(F.mse_loss)

@@ -129,6 +129,9 @@ class TrainExperiment(BaseExperiment):
 
     def build_loss(self):
         self.loss_func = eval_config(self.config["loss_func"])
+        # If loss_func is a class, then instantiate it.
+        if isinstance(self.loss_func, type):
+            self.loss_func = self.loss_func()
 
     def build_metrics(self, init_metrics):
         self.metric_fns = {}
@@ -354,8 +357,7 @@ class TrainExperiment(BaseExperiment):
         metrics = {"loss": outputs["loss"].item()}
         metric_weights = {"loss": None}
         for name, fn in self.metric_fns.items():
-            print("Ypred shape:", outputs["y_pred"].shape)
-            print("Ytrue shape:", outputs["y_true"].shape)
+
             value_obj = fn(outputs["y_pred"], outputs["y_true"])
             if isinstance(value_obj, tuple):
                 # Place both the values and the weights from the tuple. Note that
