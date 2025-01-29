@@ -79,11 +79,10 @@ class UNet(nn.Module):
         for group in (self.down_blocks, self.up_blocks, [self.out_conv]):
             for module in group:
                 module.reset_parameters()
-
+    
     def forward(self, x: Tensor) -> Tensor:
 
         conv_outputs = []
-
         for i, conv_block in enumerate(self.down_blocks):
             x = conv_block(x)
             if i == len(self.down_blocks) - 1:
