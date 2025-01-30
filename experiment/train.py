@@ -3,6 +3,7 @@ import time
 import copy
 import pathlib
 from typing import List
+from pprint import pprint
 # Torch imports
 import torch
 from torch import nn
@@ -137,7 +138,13 @@ class TrainExperiment(BaseExperiment):
         self.metric_fns = {}
         if init_metrics:
             if "log.metrics" in self.config:
-                self.metric_fns = eval_config(copy.deepcopy(self.config["log.metrics"]))
+                log_metric_cfg = self.config["log.metrics"].to_dict()
+                # Get out the label types if they exist.
+                self.metric_label_types = {}
+                for metric_name, metric_dict in log_metric_cfg.items():
+                    self.metric_label_types[metric_name] = metric_dict.pop("label_type", None)
+                # Initialize the metric functions.
+                self.metric_fns = eval_config(log_metric_cfg)
 
     def build_initialization(self):
         if "initialization" in self.config:
@@ -357,8 +364,19 @@ class TrainExperiment(BaseExperiment):
         metrics = {"loss": outputs["loss"].item()}
         metric_weights = {"loss": None}
         for name, fn in self.metric_fns.items():
+            y_pred = outputs["y_pred"]
+            y_true = outputs["y_true"]
+            # If y_pred and y_true are dictionaries, then we need to choose the correct
+            # key for the metric function.
+            if isinstance(y_pred, dict) and isinstance(y_true, dict):
+                label_type = self.metric_label_types[name]
+                y_pred = y_pred[label_type]
+                y_true = y_true[label_type]
+            # Run the outputs through the metric function.
+            # Sometimes we need out outputs to be weighted, so we will
+            # return both values and weights.
+            value_obj = fn(y_pred, y_true)
 
-            value_obj = fn(outputs["y_pred"], outputs["y_true"])
             if isinstance(value_obj, tuple):
                 # Place both the values and the weights from the tuple. Note that
                 # that if we supply the weights it has to be the unreduced loss.

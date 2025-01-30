@@ -1,6 +1,6 @@
 from .vae import vae_loss, kld_loss
 from .flat import *
-from .multi import MultiLoss
+from .multi import MultiLoss, CombinedLoss
 from .segmentation import (
     soft_jaccard_score,
     soft_dice_loss,
