@@ -291,7 +291,10 @@ def ReconstructionShowPreds(
     x = x.numpy().squeeze() # Move channel dimension to last.
     y_hat = y_hat.squeeze()
     # We plot four images per batch item.
-    f, axarr = plt.subplots(nrows=2, ncols=bs, figsize=(bs * size_per_image, 4 * size_per_image))
+    if bs == 1:
+        f, axarr = plt.subplots(nrows=1, ncols=2, figsize=(2 * size_per_image, size_per_image))
+    else:
+        f, axarr = plt.subplots(nrows=2, ncols=bs, figsize=(bs * size_per_image, 4 * size_per_image))
 
     # Go through each item in the batch.
     for b_idx in range(bs):

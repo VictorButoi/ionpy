@@ -361,7 +361,10 @@ def generate_config_uuids(config_list: List[Config]):
 
 
 def  gather_pretrained_models(pretrained_dir_list):
-    if not isinstance(pretrained_dir_list, list):
+    # If this is a tuple, convert it to a list.
+    if isinstance(pretrained_dir_list, tuple):
+        pretrained_dir_list = list(pretrained_dir_list)
+    elif not isinstance(pretrained_dir_list, list):
         pretrained_dir_list = [pretrained_dir_list]
     # Now we need to go through all the pre-trained models and gather THEIR configs.
     all_pre_models = []
