@@ -72,8 +72,15 @@ def augmentations_from_config(config: List[Dict[str, Any]]) -> PairedSequential:
 
     random_apply = False
     for aug in config:
-        assert len(aug) == 1 and isinstance(aug, dict)
-        for name, params in aug.items():
+        if not isinstance(aug, dict):
+            if "Random" in aug:
+                aug = {aug: {"p": 1.0}}
+            else:
+                raise ValueError(f"Invalid augmentation {aug}")
+        else:
+            assert len(aug) == 1 and isinstance(aug, dict)
+        for full_name, params in aug.items():
+            name = full_name.split(".")[-1]
             if name == "random_apply":
                 random_apply = params
             else:

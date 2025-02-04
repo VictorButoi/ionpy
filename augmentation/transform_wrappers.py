@@ -8,6 +8,10 @@ import albumentations as A
 import torchvision.transforms as transforms
 
 
+class SequentialIgnoreSecond(nn.Sequential):
+    def forward(self, x, y):  # Ignore the second argument
+        return super().forward(x), y
+
 def init_torch_transforms(transform_listt):
     transform_list = initialize_transforms(transform_listt)
     if transform_list is None:
@@ -30,7 +34,7 @@ def init_kornia_transforms(transform_list, mode=None):
     else:
         if mode == 'image':
             transform_list = initialize_transforms(transform_list)
-            return nn.Sequential(*transform_list)  # Kornia requires a module-based composition
+            return SequentialIgnoreSecond(*transform_list)  # Kornia requires a module-based composition
         else:
             return augmentations_from_config(transform_list)
 
