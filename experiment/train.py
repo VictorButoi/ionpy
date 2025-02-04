@@ -285,7 +285,7 @@ class TrainExperiment(BaseExperiment):
 
         with torch.set_grad_enabled(grad_enabled):
             for batch_idx in range(len(dl)):
-                # We want to time each part of our pipeline to see where the bottleneck is.
+                # # We want to time each part of our pipeline to see where the bottleneck is.
                 # torch.cuda.synchronize()
                 # t1 = time.time()
                 batch = next(iter_loader) # Doing this lets us time the data loading.
@@ -313,6 +313,7 @@ class TrainExperiment(BaseExperiment):
                 # torch.cuda.synchronize()
                 # t2 = time.time()
                 # print("Compute Metrics time:", t2 - t1)
+                # print()
 
                 phase_meters.update(batch_metrics, weights=batch_metric_weights)
 

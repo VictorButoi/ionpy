@@ -1,5 +1,6 @@
-import ast
 from ionpy.experiment.util import absolute_import
+# Torch imports
+import torch.nn as nn
 # Our different augmentation libraries
 import albumentations as A
 import torchvision.transforms as transforms
@@ -19,6 +20,14 @@ def init_album_transforms(transform_list):
         return None
     else:
         return A.Compose(transform_list)
+
+
+def init_kornia_transforms(transform_list):
+    transform_list = initialize_transforms(transform_list)
+    if transform_list is None:
+        return None
+    else:
+        return nn.Sequential(*transform_list)  # Kornia requires a module-based composition
 
 
 def initialize_transforms(transform_list):
