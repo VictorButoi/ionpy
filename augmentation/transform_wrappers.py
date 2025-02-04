@@ -1,4 +1,6 @@
-from ionpy.experiment.util import absolute_import
+# Local imports
+from ..experiment.util import absolute_import
+from .containers import augmentations_from_config
 # Torch imports
 import torch.nn as nn
 # Our different augmentation libraries
@@ -22,12 +24,15 @@ def init_album_transforms(transform_list):
         return A.Compose(transform_list)
 
 
-def init_kornia_transforms(transform_list):
-    transform_list = initialize_transforms(transform_list)
+def init_kornia_transforms(transform_list, mode=None):
     if transform_list is None:
         return None
     else:
-        return nn.Sequential(*transform_list)  # Kornia requires a module-based composition
+        if mode == 'image':
+            transform_list = initialize_transforms(transform_list)
+            return nn.Sequential(*transform_list)  # Kornia requires a module-based composition
+        else:
+            return augmentations_from_config(transform_list)
 
 
 def initialize_transforms(transform_list):

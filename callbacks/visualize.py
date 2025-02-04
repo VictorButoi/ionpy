@@ -119,7 +119,6 @@ def ClassificationShowPreds(
     else:
         all_ax = axarr.flatten()
     for ax in all_ax:
-        ax.axis('off')
         ax.grid(False)
 
     plt.show()
@@ -256,7 +255,6 @@ def SegmentationShowPreds(
     else:
         all_ax = axarr.flatten()
     for ax in all_ax:
-        ax.axis('off')
         ax.grid(False)
     plt.show()
 
@@ -320,7 +318,6 @@ def ReconstructionShowPreds(
     else:
         all_ax = axarr.flatten()
     for ax in all_ax:
-        ax.axis('off')
         ax.grid(False)
     plt.show()
 

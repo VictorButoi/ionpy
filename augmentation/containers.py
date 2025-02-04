@@ -65,22 +65,6 @@ class VerbosePairedSequential(PairedSequential):
             samples.append([image, segmentation, self[i]._params])
         return samples
 
-    def support_forward(self, images, segmentations):
-        x, y = images, segmentations
-        support_size = x.shape[1]
-        x = E.rearrange(x, "B S C H W -> B (S C) H W")
-        y = E.rearrange(y, "B S C H W -> B (S C) H W")
-        samples = self.forward(x, y)
-        samples = [
-            (
-                E.rearrange(x, "B (S C) H W -> B S C H W", S=support_size),
-                E.rearrange(y, "B (S C) H W -> B S C H W", S=support_size),
-                params,
-            )
-            for x, y, params in samples
-        ]
-        return samples
-
 
 def augmentations_from_config(config: List[Dict[str, Any]]) -> PairedSequential:
 
