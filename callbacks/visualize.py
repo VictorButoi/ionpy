@@ -93,7 +93,7 @@ def ClassificationShowPreds(
     y = y.detach().cpu().numpy()
     y_hat = y_hat.detach().cpu().numpy()
     # Prepare matplotlib objects.
-    bs = x.shape[0]
+    bs = y.shape[0]
     ncols = min(bs, col_wrap)
     nrows = int(np.ceil(bs / ncols))
     f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, nrows * size_per_image))
@@ -153,7 +153,7 @@ def SegmentationShowPreds(
 
     # Get the predicted label
     y_hat = batch[pred_cls].detach().cpu()
-    bs = x.shape[0]
+    bs = y.shape[0]
     num_pred_classes = y_hat.shape[1]
 
     if num_pred_classes <= 2:
@@ -264,7 +264,7 @@ def ReconstructionShowPreds(
     size_per_image: int,
     denormalize: Any
 ):
-    x = batch["x"].detach().cpu()
+    x = batch["y_true"].detach().cpu()
 
     # Prints some metric stuff
     if "loss" in batch:
@@ -273,11 +273,13 @@ def ReconstructionShowPreds(
     # Get the predicted label
     y_hat = batch["y_pred"].detach().cpu()
     bs = x.shape[0]
+    print("x shape: ", x.shape)
 
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
         img_cmap = None
         # First we process the image for visualization.
+        print("Hit here!")
         x = proc_rgb_image(x, denormalize_fn=denormalize)
         y_hat = proc_rgb_image(y_hat, denormalize_fn=denormalize)
         # Clip y_hat to be between 0 and 255.

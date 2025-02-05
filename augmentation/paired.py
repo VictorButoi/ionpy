@@ -73,6 +73,7 @@ def _from_individual_aug(module, mode: Literal["both", "image", "mask"]):
 
 # Deterministic Image only
 Normalize = _from_individual_aug(KA.Normalize, mode="image")
+PairNormalize = _from_individual_aug(KA.Normalize, mode="both")
 Denormalize = _from_individual_aug(KA.Denormalize, mode="image")
 
 # Random Image only
