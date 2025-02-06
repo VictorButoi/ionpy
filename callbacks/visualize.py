@@ -200,7 +200,6 @@ def SegmentationShowPreds(
         y_hat = torch.stack([y_hat[i, ..., max_slices[i]] for i in range(bs)])
         y_hard = torch.stack([y_hard[i, ..., max_slices[i]] for i in range(bs)])
     
-
     # Squeeze all tensors in prep.
     x = x.numpy().squeeze() # Move channel dimension to last.
     y = y.numpy().squeeze()
@@ -296,7 +295,7 @@ def ReconstructionShowPreds(
             im1 = axarr[0].imshow(x, cmap=img_cmap, interpolation='None')
             f.colorbar(im1, ax=axarr[0], orientation='vertical')
 
-            axarr[1].set_title("Pred Reconstruction\nLoss: {:.2f}".format(batch["loss"].item()))
+            axarr[1].set_title("Pred Reconstruction\nLoss: {:.3f}".format(batch["loss"].item()))
             im2 = axarr[1].imshow(y_hat, cmap=img_cmap, interpolation='None')
             f.colorbar(im2, ax=axarr[1], orientation='vertical')
         else:
@@ -306,10 +305,7 @@ def ReconstructionShowPreds(
 
             # Get the loss for this batch item.
             b_loss = batch["loss"]
-            if len(b_loss.shape) == 0:
-                b_idx_loss = b_loss.item()
-            else:
-                b_idx_loss = b_loss[b_idx].item()
+            b_idx_loss = b_loss.item() if len(b_loss.shape) == 0 else b_loss[b_idx].item()
 
             axarr[1, b_idx].set_title("Pred Reconstruction\nLoss: {:.3f}".format(b_idx_loss))
             im2 = axarr[1, b_idx].imshow(y_hat[b_idx], cmap=img_cmap, interpolation='None')
