@@ -362,7 +362,11 @@ class TrainExperiment(BaseExperiment):
         return forward_batch
 
     def compute_metrics(self, outputs):
-        metrics = {"loss": outputs["loss"].item()}
+        batch_loss = outputs["loss"]
+        # If the loss is not a scalar, then we need to reduce it to a scalar.
+        if len(batch_loss.shape) != 0:
+            batch_loss = batch_loss.mean()
+        metrics = {"loss": batch_loss.item()}
         metric_weights = {"loss": None}
         for name, fn in self.metric_fns.items():
             y_pred = outputs["y_pred"]

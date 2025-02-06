@@ -36,6 +36,11 @@ class ShowPredictions:
 
 
     def __call__(self, batch):
+
+        # Prints some metric stuff
+        if "loss" in batch and len(batch["loss"].shape) == 0:
+            print("Loss: ", batch["loss"].item())
+
         if self.vis_type == "classification": 
             ClassificationShowPreds(
                 batch, 
@@ -72,9 +77,7 @@ def ClassificationShowPreds(
     x = batch["x"]
     y = batch["y_true"]
     y_hat = batch["y_pred"]
-    # Prints some metric stuff
-    if "loss" in batch:
-        print("Loss: ", batch["loss"].item())
+
     # Get the predicted label
     if y_hat.shape[1] == 1:
         y_hat = (torch.sigmoid(y_hat) > threshold).astype(int)
@@ -146,10 +149,6 @@ def SegmentationShowPreds(
     # Transfer image and label to the cpu.
     x = x.detach().cpu()
     y = y.detach().cpu() 
-
-    # Prints some metric stuff
-    if "loss" in batch:
-        print("Loss: ", batch["loss"].item())
 
     # Get the predicted label
     y_hat = batch[pred_cls].detach().cpu()
@@ -266,20 +265,14 @@ def ReconstructionShowPreds(
 ):
     x = batch["y_true"].detach().cpu()
 
-    # Prints some metric stuff
-    if "loss" in batch:
-        print("Loss: ", batch["loss"].item())
-
     # Get the predicted label
     y_hat = batch["y_pred"].detach().cpu()
     bs = x.shape[0]
-    print("x shape: ", x.shape)
 
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
         img_cmap = None
         # First we process the image for visualization.
-        print("Hit here!")
         x = proc_rgb_image(x, denormalize_fn=denormalize)
         y_hat = proc_rgb_image(y_hat, denormalize_fn=denormalize)
         # Clip y_hat to be between 0 and 255.
@@ -303,7 +296,7 @@ def ReconstructionShowPreds(
             im1 = axarr[0].imshow(x, cmap=img_cmap, interpolation='None')
             f.colorbar(im1, ax=axarr[0], orientation='vertical')
 
-            axarr[1].set_title("Pred Reconstruction")
+            axarr[1].set_title("Pred Reconstruction\nLoss: {:.2f}".format(batch["loss"].item()))
             im2 = axarr[1].imshow(y_hat, cmap=img_cmap, interpolation='None')
             f.colorbar(im2, ax=axarr[1], orientation='vertical')
         else:
@@ -311,7 +304,14 @@ def ReconstructionShowPreds(
             im1 = axarr[0, b_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
             f.colorbar(im1, ax=axarr[0, b_idx], orientation='vertical')
 
-            axarr[1, b_idx].set_title("Pred Reconstruction")
+            # Get the loss for this batch item.
+            b_loss = batch["loss"]
+            if len(b_loss.shape) == 0:
+                b_idx_loss = b_loss.item()
+            else:
+                b_idx_loss = b_loss[b_idx].item()
+
+            axarr[1, b_idx].set_title("Pred Reconstruction\nLoss: {:.3f}".format(b_idx_loss))
             im2 = axarr[1, b_idx].imshow(y_hat[b_idx], cmap=img_cmap, interpolation='None')
             f.colorbar(im2, ax=axarr[1, b_idx], orientation='vertical')
     # Turn off all of the grids and axes in the subplot array

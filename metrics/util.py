@@ -9,7 +9,7 @@ from pydantic import validate_arguments
 from typing import Literal, Optional, Tuple, Union
 
 InputMode = Literal["binary", "multiclass", "onehot", "auto"]
-Reduction = Union[None, Literal["mean", "sum"]]
+Reduction = Union[None, Literal["mean", "sum", "none"]]
 
 
 def hard_max(x: Tensor, threshold: float = 0.5) -> Tensor:
