@@ -32,7 +32,7 @@ class ShowPredictions:
                 std=[1/s for s in denormalize['std']]
             )
         else:
-            self.denormalize = lambda x: x
+            self.denormalize = None
 
 
     def __call__(self, batch):
@@ -86,8 +86,9 @@ def ClassificationShowPreds(
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
         img_cmap = None
-        x = denormalize(x)
-        x = x * 255
+        if denormalize is not None:
+            x = denormalize(x)
+            x = x * 255
         x = x.permute(0, 2, 3, 1).int() # Move channel dimension to last.
     else:
         img_cmap = "gray"
@@ -165,8 +166,9 @@ def SegmentationShowPreds(
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
         img_cmap = None
-        x = denormalize(x)
-        x = x * 255
+        if denormalize is not None:
+            x = denormalize(x)
+            x = x * 255
         x = x.permute(0, 2, 3, 1).int() # Move channel dimension to last.
     else:
         img_cmap = "gray"
@@ -274,8 +276,6 @@ def ReconstructionShowPreds(
         # First we process the image for visualization.
         x = proc_rgb_image(x, denormalize_fn=denormalize)
         y_hat = proc_rgb_image(y_hat, denormalize_fn=denormalize)
-        # Clip y_hat to be between 0 and 255.
-        y_hat = torch.clamp(y_hat, 0, 255)
     else:
         img_cmap = "gray"
 
@@ -320,8 +320,17 @@ def ReconstructionShowPreds(
     plt.show()
 
 
-def proc_rgb_image(raw_x, denormalize_fn):
-    proc_x = denormalize_fn(raw_x)
-    proc_x = proc_x * 255
-    proc_x = proc_x.permute(0, 2, 3, 1).int() # Move channel dimension to last.
-    return proc_x 
+def proc_rgb_image(x, denormalize_fn):
+    # If using a denorm fn, then we will want to
+    # use an integer image.
+    if denormalize_fn is not None:
+        x = denormalize_fn(x)
+        x = x * 255
+        x = x.int()
+        # Clip y_hat to be between 0 and 255.
+        x = torch.clamp(x, 0, 255)
+    else:
+        x = torch.clamp(x, 0, 1)
+    
+    x = x.permute(0, 2, 3, 1) # Move channel dimension to last.
+    return x 
