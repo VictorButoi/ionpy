@@ -7,7 +7,7 @@ from ionpy.nn import batch_renorm
 from torch import nn
 
 NormType = Union[
-    Literal["batch", "batchre", "layer", "instance", "channel"],
+    Literal["batch", "batchre", "layer", "instance", "channel", "none"],
     Tuple[Literal["group"], int],
 ]
 
@@ -54,5 +54,7 @@ def get_normlayer(
         k, groups = kind
         assert k == "group"
         return nn.GroupNorm(groups, features, **norm_kws)
+    elif kind == "none":
+        return nn.Identity()
     elif kind is not None:
         raise ValueError(f"Unknown normalization type {kind}")
