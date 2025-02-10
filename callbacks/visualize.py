@@ -59,6 +59,7 @@ class ShowPredictions:
         elif self.vis_type == "reconstruction":
             ReconstructionShowPreds(
                 batch, 
+                col_wrap=self.col_wrap, 
                 size_per_image=self.size_per_image,
                 denormalize=self.denormalize
             )
@@ -261,6 +262,7 @@ def SegmentationShowPreds(
 
 def ReconstructionShowPreds(
     batch, 
+    col_wrap: int,
     size_per_image: int,
     denormalize: Any
 ):
@@ -286,7 +288,10 @@ def ReconstructionShowPreds(
     if bs == 1:
         f, axarr = plt.subplots(nrows=1, ncols=2, figsize=(2 * size_per_image, size_per_image))
     else:
-        f, axarr = plt.subplots(nrows=2, ncols=bs, figsize=(bs * size_per_image, 4 * size_per_image))
+        num_images = bs * 2
+        nrows = int(np.ceil(num_images / col_wrap))
+        ncols = min(bs, col_wrap)
+        f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, 4 * size_per_image))
 
     # Go through each item in the batch.
     for b_idx in range(bs):
@@ -299,17 +304,21 @@ def ReconstructionShowPreds(
             im2 = axarr[1].imshow(y_hat, cmap=img_cmap, interpolation='None')
             f.colorbar(im2, ax=axarr[1], orientation='vertical')
         else:
-            axarr[0, b_idx].set_title("Image")
-            im1 = axarr[0, b_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
-            f.colorbar(im1, ax=axarr[0, b_idx], orientation='vertical')
+            # Get the col and row index based on the batch index and col_wrap.
+            col_idx = b_idx % ncols
+            rowset = b_idx // ncols
+
+            axarr[2*rowset, col_idx].set_title("Image")
+            im1 = axarr[2*rowset, col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
+            f.colorbar(im1, ax=axarr[2*rowset, col_idx], orientation='vertical')
 
             # Get the loss for this batch item.
             b_loss = batch["loss"]
             b_idx_loss = b_loss.item() if len(b_loss.shape) == 0 else b_loss[b_idx].item()
 
-            axarr[1, b_idx].set_title("Pred Reconstruction\nLoss: {:.3f}".format(b_idx_loss))
-            im2 = axarr[1, b_idx].imshow(y_hat[b_idx], cmap=img_cmap, interpolation='None')
-            f.colorbar(im2, ax=axarr[1, b_idx], orientation='vertical')
+            axarr[2*rowset + 1, col_idx].set_title("Pred Reconstruction\nLoss: {:.3f}".format(b_idx_loss))
+            im2 = axarr[2*rowset + 1, col_idx].imshow(y_hat[b_idx], cmap=img_cmap, interpolation='None')
+            f.colorbar(im2, ax=axarr[2*rowset + 1, col_idx], orientation='vertical')
     # Turn off all of the grids and axes in the subplot array
     if not isinstance(axarr, np.ndarray):
         all_ax = [axarr]

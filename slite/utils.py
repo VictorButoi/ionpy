@@ -38,7 +38,7 @@ def log_exp_config_objs(
         mod_exp_name = f"{formatted_date}_{exp_name}"
     else:
         mod_exp_name = exp_name
-
+    
     # Save the experiment config.
     exp_root = Path(f"{submit_cfg['scratch_root']}/{submit_cfg['group']}/{mod_exp_name}")
 
