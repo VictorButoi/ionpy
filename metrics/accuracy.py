@@ -27,7 +27,6 @@ def correct(output, target, topk=(1,)):
     Returns:
         List(int) -- Number of correct values for each topk
     """
-
     maxk = max(topk)
     # Only need to do topk for highest k, reuse for the rest
     _, pred = output.topk(maxk, 1, True, True)
