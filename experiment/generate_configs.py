@@ -93,7 +93,7 @@ def get_training_configs(
 def get_inference_configs(
     exp_cfg: dict,
     base_cfg: Config,
-    code_root: Path,
+    config_root: Path,
     scratch_root: Path,
     add_date: bool = True
 ):
@@ -147,13 +147,7 @@ def get_inference_configs(
     dataset_cfgs = []
     # Iterate through all of our inference options.
     for run_opt_dict in total_run_cfg_options: 
-        # One required key is 'base_model'. We need to know if it is a single model or a group of models.
-        # We evaluate this by seeing if 'submitit' is in the base model path.
-        base_model_group_dir = Path(run_opt_dict.pop('base_model')[0])
-        if 'submitit' in os.listdir(base_model_group_dir):
-            model_set  = gather_valid_paths(str(base_model_group_dir)) 
-        else:
-            model_set = [str(base_model_group_dir)]
+        model_set = gather_pretrained_models(run_opt_dict.pop('base_model')) 
         # Append these to the list of configs and roots.
         dataset_cfgs.append({
             'log.root': [str(inference_log_root)],
@@ -170,7 +164,7 @@ def get_inference_configs(
             # Add the inference dataset specific details.
             dataset_inf_cfg_dict = get_inference_dset_info(
                 cfg=exp_cfg_update,
-                code_root=code_root
+                config_root=config_root
             )
             # Update the base config with the new options. Note the order is important here, such that 
             # the exp_cfg_update is the last thing to update.
@@ -408,7 +402,7 @@ def get_range_from_str(val):
 
 def get_inference_dset_info(
     cfg,
-    code_root
+    config_root 
 ):
     # Total model config
     base_model_cfg = yaml.safe_load(open(f"{cfg['experiment.model_dir']}/config.yml", "r"))
@@ -426,12 +420,11 @@ def get_inference_dset_info(
             base_data_cfg.pop(d_key)
 
     # Get the dataset name, and load the base inference dataset config for that.
-    base_dset_cls = base_data_cfg['_class']
     inf_dset_cls = cfg['inference_data._class']
 
     inf_dset_name = inf_dset_cls.split('.')[-1]
     # Add the dataset specific details.
-    inf_dset_cfg_file = code_root / "sebench" / "configs" / "inference" / f"{inf_dset_name}.yaml"
+    inf_dset_cfg_file = config_root / "inference" / f"{inf_dset_name}.yaml"
     if inf_dset_cfg_file.exists():
         with open(inf_dset_cfg_file, 'r') as d_file:
             inf_cfg_presets = yaml.safe_load(d_file)
