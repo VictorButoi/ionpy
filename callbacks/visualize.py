@@ -289,7 +289,7 @@ def ReconstructionShowPreds(
         f, axarr = plt.subplots(nrows=1, ncols=2, figsize=(2 * size_per_image, size_per_image))
     else:
         num_images = bs * 2
-        nrows = int(np.ceil(num_images / col_wrap))
+        nrows = max(int(np.ceil(num_images / col_wrap)), 2)
         ncols = min(bs, col_wrap)
         f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, 4 * size_per_image))
 
