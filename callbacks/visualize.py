@@ -95,6 +95,12 @@ def ClassificationShowPreds(
         x = x.permute(0, 2, 3, 1) # Move channel dimension to last.
     else:
         img_cmap = "gray"
+    
+    # If the image is float, clip between [0, 1]
+    if x.dtype == torch.float32:
+        x = torch.clamp(x, 0, 1)
+    elif x.dtype == torch.int:
+        x = torch.clamp(x, 0, 255)
 
     # Prepare the tensors for visualization as npdarrays.
     x = x.detach().cpu().numpy()

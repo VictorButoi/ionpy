@@ -84,11 +84,45 @@ def submit_exps(
     exp_cfg: dict,
     base_cfg: dict,
     submit_cfg: dict,
-    job_func: Optional[Callable] = None,
-    experiment_class: Optional[Any] = None
+    experiment_class: Any
 ):
-    # Checkjob_func if the input is valid.
-    submit_input_check(experiment_class, job_func)
+    # Save the experiment configs so we can know what we ran.
+    log_exp_config_objs(
+        exp_cfg=exp_cfg, 
+        base_cfg=base_cfg, 
+        submit_cfg=submit_cfg,
+    )
+    # Modify a few things relating to callbacks.
+    modified_cfgs = [] 
+    for config in cfg_list:
+        cfg = config.to_dict()
+        if "callbacks" in cfg:
+            # Get the config as a dictionary.
+            # Remove the step callbacks because it will slow down training.
+            if "step" in cfg["callbacks"]:
+                cfg["callbacks"].pop("step")
+            # If you don't want to track wandb, then remove the wandb callback.
+            # If not tracking wandb, remove the callback if its in the config.
+            if not submit_cfg['track_wandb']:
+                pop_wandb_callback(cfg)
+        # Add the modified config to the list.
+        modified_cfgs.append(cfg)
+    # Run the set of configs.
+    slubmit.submit_jobs(
+        exp_class=experiment_class,
+        submit_cfg=submit_cfg,
+        config_list=modified_cfgs
+    )
+
+
+@validate_arguments
+def submit_jobs(
+    cfg_list: List,
+    exp_cfg: dict,
+    base_cfg: dict,
+    submit_cfg: dict,
+    job_func: Callable
+):
     # Save the experiment configs so we can know what we ran.
     log_exp_config_objs(
         exp_cfg=exp_cfg, 
@@ -113,7 +147,6 @@ def submit_exps(
     # Run the set of configs.
     slubmit.submit_jobs(
         job_func=job_func,
-        exp_class=experiment_class,
         submit_cfg=submit_cfg,
         config_list=modified_cfgs
     )
