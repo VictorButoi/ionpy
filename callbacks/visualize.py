@@ -84,6 +84,10 @@ def ClassificationShowPreds(
         y_hat = (torch.sigmoid(y_hat) > threshold).astype(int)
     else:
         y_hat = torch.argmax(y_hat, axis=1)
+    
+    # Print the batch acurracy.
+    acc = (y == y_hat).sum().item() / y.shape[0]
+    print("Batch Accuracy: ", acc)
 
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
