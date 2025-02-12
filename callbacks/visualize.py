@@ -13,8 +13,8 @@ class ShowPredictions:
     
     def __init__(
         self, 
-        exp, 
-        vis_type: Literal["classification", "segmentation"],
+        exp = None, 
+        vis_type: Literal["classification", "segmentation"] = "classification",
         col_wrap: int = 4,
         threshold: float = 0.5,
         size_per_image: int = 5,
