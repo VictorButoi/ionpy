@@ -90,25 +90,30 @@ def _accuracy(output, target, topk=(1,)):
 
 
 def accuracy(
-    output, 
-    target,
+    y_pred, 
+    y_true,
+    return_weights: bool = False,
     positive_class_weight: float = 1.0,
     batch_reduction: Reduction = "mean"
 ):
     maxk = max((1,))
-    _, pred = output.topk(maxk, 1, True, True)
+    _, pred = y_pred.topk(maxk, 1, True, True)
     pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred)).float().squeeze(0)
+    correct = pred.eq(y_true.view(1, -1).expand_as(pred)).float().squeeze(0)
 
     if batch_reduction == "mean":
         return correct.mean()
     elif batch_reduction == "sum":
         return correct.sum()
     else:
-        weights_per_sample = torch.zeros_like(target, dtype=torch.float)
-        # If we want to balance the classes in binary classification then we can 
-        # assign a weight to each sample based on the target value.
-        weights_per_sample[target == 1] = positive_class_weight
-        weights_per_sample[target == 0] = 1 / positive_class_weight
-        # Return both the correct AND the weights
-        return correct, weights_per_sample
+        if return_weights:
+            # Create a tensor of the same shape as y_true filled with zeros
+            weights_per_sample = torch.zeros_like(y_true, dtype=torch.float)
+            # If we want to balance the classes in binary classification then we can 
+            # assign a weight to each sample based on the target value.
+            weights_per_sample[y_true == 1] = positive_class_weight
+            weights_per_sample[y_true == 0] = 1 / positive_class_weight
+            # Return both the correct AND the weights
+            return correct, weights_per_sample
+        else:
+            return correct

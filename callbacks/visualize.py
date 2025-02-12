@@ -84,19 +84,23 @@ def ClassificationShowPreds(
         y_hat = (torch.sigmoid(y_hat) > threshold).astype(int)
     else:
         y_hat = torch.argmax(y_hat, axis=1)
+
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
         img_cmap = None
         if denormalize is not None:
             x = denormalize(x)
             x = x * 255
-        x = x.permute(0, 2, 3, 1).int() # Move channel dimension to last.
+            x = x.int()
+        x = x.permute(0, 2, 3, 1) # Move channel dimension to last.
     else:
         img_cmap = "gray"
+
     # Prepare the tensors for visualization as npdarrays.
     x = x.detach().cpu().numpy()
     y = y.detach().cpu().numpy()
     y_hat = y_hat.detach().cpu().numpy()
+    
     # Prepare matplotlib objects.
     bs = y.shape[0]
     ncols = min(bs, col_wrap)

@@ -169,10 +169,13 @@ def get_inference_configs(
             # Update the base config with the new options. Note the order is important here, such that 
             # the exp_cfg_update is the last thing to update.
             cfg = base_cfg.update([dataset_inf_cfg_dict, exp_cfg_update])
+            # Make sure that we don't have any tuples.
+            cfg_dict = cfg.to_dict()
+            tuplized_cfg = Config(tuplize_str_dict(cfg_dict))
             # Verify it's a valid config
-            check_missing(cfg)
+            check_missing(tuplized_cfg)
             # Add it to the total list of inference options.
-            cfgs.append(cfg)
+            cfgs.append(tuplized_cfg)
 
     # Return the configs and the base config.
     base_cfg_dict = base_cfg.to_dict()
