@@ -7,7 +7,7 @@ from ionpy.nn import batch_renorm
 from torch import nn
 
 NormType = Union[
-    Literal["batch", "batchre", "layer", "instance", "channel", "none"],
+    Literal["batch", "batchre", "layer", "instance", "channel", "group", "none"],
     Tuple[Literal["group"], int],
 ]
 
