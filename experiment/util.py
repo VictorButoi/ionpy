@@ -49,6 +49,9 @@ def absolute_import(reference):
 
 def eval_config(config, opt_kwargs=None):
 
+    if config is None:
+        return None
+
     if not isinstance(config, (dict, list, HDict)):
         return config
 

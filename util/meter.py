@@ -236,6 +236,9 @@ class MeterDict(dict):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({repr(dict(self))})"
+    
+    def asdict(self):
+        return {label: meter.asdict() for label, meter in self.items()}
 
 
 class MedianMeter(Meter):
