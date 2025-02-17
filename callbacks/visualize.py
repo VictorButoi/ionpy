@@ -325,12 +325,13 @@ def ReconstructionShowPreds(
             axarr[2*rowset, col_idx].set_title("Image")
             im1 = axarr[2*rowset, col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
             f.colorbar(im1, ax=axarr[2*rowset, col_idx], orientation='vertical')
-
             # Get the loss for this batch item.
-            b_loss = batch["loss"]
-            b_idx_loss = b_loss.item() if len(b_loss.shape) == 0 else b_loss[b_idx].item()
-
-            axarr[2*rowset + 1, col_idx].set_title("Pred Reconstruction\nLoss: {:.3f}".format(b_idx_loss))
+            if "loss" in batch:
+                b_loss = batch["loss"]
+                b_idx_loss = b_loss.item() if len(b_loss.shape) == 0 else b_loss[b_idx].item()
+                axarr[2*rowset + 1, col_idx].set_title("Pred Reconstruction\nLoss: {:.3f}".format(b_idx_loss))
+            else:
+                axarr[2*rowset + 1, col_idx].set_title("Pred Reconstruction")
             im2 = axarr[2*rowset + 1, col_idx].imshow(y_hat[b_idx], cmap=img_cmap, interpolation='None')
             f.colorbar(im2, ax=axarr[2*rowset + 1, col_idx], orientation='vertical')
     # Turn off all of the grids and axes in the subplot array
