@@ -280,10 +280,16 @@ def ReconstructionShowPreds(
     size_per_image: int,
     denormalize: Any
 ):
-    x = batch["y_true"].detach().cpu()
-
     # Get the predicted label
-    y_hat = batch["y_pred"].detach().cpu()
+    if isinstance(batch["y_pred"], dict):
+        x = batch["y_true"]["image"]
+        y_pred = batch["y_pred"]["image"]
+    else:
+        x = batch["y_true"]
+        y_pred = batch["y_pred"]
+    #
+    x = x.detach().cpu()
+    y_hat = y_pred.detach().cpu()
     bs = x.shape[0]
 
     # If x is rgb (has 3 input channels)
@@ -314,7 +320,10 @@ def ReconstructionShowPreds(
             im1 = axarr[0].imshow(x, cmap=img_cmap, interpolation='None')
             f.colorbar(im1, ax=axarr[0], orientation='vertical')
 
-            axarr[1].set_title("Pred Reconstruction\nLoss: {:.3f}".format(batch["loss"].item()))
+            if 'loss' in batch:
+                axarr[1].set_title("Pred Reconstruction\nLoss: {:.3f}".format(batch["loss"].item()))
+            else:
+                axarr[1].set_title("Pred Reconstruction")
             im2 = axarr[1].imshow(y_hat, cmap=img_cmap, interpolation='None')
             f.colorbar(im2, ax=axarr[1], orientation='vertical')
         else:
