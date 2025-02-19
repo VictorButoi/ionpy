@@ -168,7 +168,7 @@ def get_inference_configs(
             )
             # Update the base config with the new options. Note the order is important here, such that 
             # the exp_cfg_update is the last thing to update.
-            cfg = base_cfg.update([dataset_inf_cfg_dict, exp_cfg_update])
+            cfg = Config(dataset_inf_cfg_dict).update([base_cfg, exp_cfg_update])
             # Make sure that we don't have any tuples.
             cfg_dict = cfg.to_dict()
             tuplized_cfg = Config(tuplize_str_dict(cfg_dict))
@@ -423,9 +423,7 @@ def get_inference_dset_info(
             base_data_cfg.pop(d_key)
 
     # Get the dataset name, and load the base inference dataset config for that.
-    inf_dset_cls = cfg['inference_data._class']
-
-    inf_dset_name = inf_dset_cls.split('.')[-1]
+    inf_dset_name = cfg.get('inference_data._class', "").split('.')[-1]
     # Add the dataset specific details.
     inf_dset_cfg_file = config_root / "inference" / f"{inf_dset_name}.yaml"
     if inf_dset_cfg_file.exists():
