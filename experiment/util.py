@@ -1,20 +1,27 @@
+# Misc imports
 import os
-import datetime
-import functools
+import ast
+import time
+import json
 import string
 import random
-import time
-import importlib
 import pathlib
-from typing import Tuple
-from pprint import pprint
-
-from ..util.config import HDict, Config
-from ..util.ioutil import autoload
-from ..util.more_functools import partial
-
-import torch
+import datetime
+import functools
+import importlib
 import numpy as np
+from pprint import pprint
+from pathlib import Path
+from pydantic import validate_arguments
+from typing import Tuple, Any, Optional
+# Torch imports
+import torch
+# Local imports
+from ..analysis import ResultsLoader
+from ..util.ioutil import autoload
+from ..util.hash import json_digest
+from ..util.config import HDict, Config
+from ..util.more_functools import partial
 
 
 def fix_seed(seed):
@@ -105,3 +112,86 @@ def path_from_job(job):
 
 def config_from_job(job):
     return config_from_path(path_from_job(job))
+
+#########################################################################
+# Inference functions
+
+
+def get_exp_load_info(pretrained_exp_root):
+    is_exp_group = not ("config.yml" in os.listdir(pretrained_exp_root)) 
+    # Load the results loader
+    rs = ResultsLoader()
+    # If the experiment is a group, then load the configs and build the experiment.
+    if is_exp_group: 
+        dfc = rs.load_configs(
+            pretrained_exp_root,
+            properties=False,
+        )
+        return {
+            "df": rs.load_metrics(dfc),
+        }
+    else:
+        return {
+            "path": pretrained_exp_root
+        }
+
+
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
+def load_experiment(
+    checkpoint: str,
+    device: str = "cpu",
+    df: Optional[Any] = None, 
+    path: Optional[str] = None,
+    exp_kwargs: Optional[dict] = {},
+    exp_class: Optional[str] = None,
+    attr_dict: Optional[dict] = None,
+    selection_metric: Optional[str] = None,
+):
+    if path is None:
+        assert df is not None, "Must provide a dataframe if no path is provided."
+        if attr_dict is not None:
+            for attr_key in attr_dict:
+                select_arg = {attr_key: attr_dict[attr_key]}
+                if attr_key in ["mix_filters"]:
+                    select_arg = {attr_key: ast.literal_eval(attr_dict[attr_key])}
+                df = df.select(**select_arg)
+        if selection_metric is not None:
+            phase, score = selection_metric.split("-")
+            df = df.select(phase=phase)
+            df = df.sort_values(score, ascending=False)
+        exp_path = df.iloc[0].path
+    else:
+        assert attr_dict is None, "Cannot provide both a path and an attribute dictionary."
+        exp_path = path
+
+    # Load the experiment
+    if exp_class is None:
+        # Get the experiment class
+        properties_dir = Path(exp_path) / "properties.json"
+        with open(properties_dir, 'r') as prop_file:
+            props = json.loads(prop_file.read())
+        exp_class = props["experiment"]["class"]
+
+    # Load the class
+    exp_class = absolute_import(f'flembed.experiment.{exp_class}')
+    exp_obj = exp_class(
+        exp_path, 
+        init_metrics=False, 
+        **exp_kwargs
+    )
+
+    # Load the experiment
+    if checkpoint is not None:
+        exp_path = Path(exp_path)
+        weights_path = exp_path / "checkpoints" / f"{checkpoint}.pt"
+        with weights_path.open("rb") as f:
+            state = torch.load(f, map_location=device, weights_only=True)
+        exp_obj.model.load_state_dict(state["model"])
+        print(f"Loaded model from: {weights_path}")
+    
+    # Set the device
+    exp_obj.device = torch.device(device)
+    if device == "cuda":
+        exp_obj.to_device()
+    
+    return exp_obj
