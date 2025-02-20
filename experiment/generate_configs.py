@@ -155,7 +155,6 @@ def get_inference_configs(
             **run_opt_dict,
             **default_config_options
         })
-
     # Keep a list of all the run configuration options.
     cfgs = []
     # Iterate over the different config options for this dataset. 
@@ -374,6 +373,7 @@ def gather_pretrained_models(directories: List[str]) -> List[str]:
         for root, sub_d, _ in os.walk(d):
             if "checkpoints" in sub_d:
                 valid_dirs.append(root)
+    assert len(valid_dirs) > 0, f"No valid pretrained models found in {directories}."
     return valid_dirs
 
 
