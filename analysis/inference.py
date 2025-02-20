@@ -12,7 +12,6 @@ from tqdm import tqdm
 from pprint import pprint
 from typing import Any, Optional
 from pydantic import validate_arguments
-import matplotlib.pyplot as plt
     
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
