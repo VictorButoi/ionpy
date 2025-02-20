@@ -357,41 +357,24 @@ def generate_config_uuids(config_list: List[Config]):
     return processed_cfgs
 
 
-def  gather_pretrained_models(pretrained_dir_list):
-    # If this is a tuple, convert it to a list.
-    if isinstance(pretrained_dir_list, tuple):
-        pretrained_dir_list = list(pretrained_dir_list)
-    elif not isinstance(pretrained_dir_list, list):
-        pretrained_dir_list = [pretrained_dir_list]
-    # Now we need to go through all the pre-trained models and gather THEIR configs.
-    all_pre_models = []
-    for pre_model_dir in pretrained_dir_list:
-        if 'submitit' in os.listdir(pre_model_dir):
-            all_pre_models.append(pre_model_dir)
-        else:
-            all_pre_models += gather_valid_paths(pre_model_dir) 
-    return all_pre_models
 
-
-def gather_valid_paths(root):
-    # For ensembles, define the root dir.
-    run_names = os.listdir(root)
-    # NOTE: Not the best way to do this, but we need to skip over some files/directories.
-    skip_items = [
-        "submitit",
-        "wandb",
-        "base.yml",
-        "experiment.yml"
-    ]
-    # Filter out the skip_items
-    valid_exp_paths = []
-    for run_name in run_names:
-        run_dir = f"{root}/{run_name}"
-        # Make sure we don't include the skip items and that we actually have valid checkpoints.
-        if (run_name not in skip_items) and os.path.isdir(f"{run_dir}/checkpoints"):
-            valid_exp_paths.append(run_dir)
-    # Return the valid experiment paths.
-    return valid_exp_paths
+def gather_pretrained_models(directories: List[str]) -> List[str]:
+    """
+    Given a list of directory paths, returns those directories that contain a `checkpoints`
+    subdirectory somewhere within their directory tree.
+    
+    Args:
+        directories (List[str]): A list of directory paths.
+    
+    Returns:
+        List[str]: A list of directories that have a `checkpoints` subdirectory at some depth.
+    """
+    valid_dirs = []
+    for d in directories:
+        for root, sub_d, _ in os.walk(d):
+            if "checkpoints" in sub_d:
+                valid_dirs.append(root)
+    return valid_dirs
 
 
 def get_range_from_str(val):
