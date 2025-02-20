@@ -1,9 +1,8 @@
-''#misc imports
-import re
+# misc imports
 import os
-import ast
 import yaml
 import pickle
+import inspect
 import itertools
 from pprint import pprint
 from typing import Optional
@@ -198,6 +197,18 @@ def dataobjs_from_exp(
         }
     else:
         gpu_aug_pipeline_dict = {} 
+    
+    # We need to prune the dataset config to only include valid
+    # parameters for the dataset class.
+    dset_cfg = {}
+    # Get the signature of the __init__ method.
+    sig = inspect.signature(dset_cls.__init__)
+    # Get the accepted parameter names (excluding 'self').
+    valid_params = set(sig.parameters.keys()) - {'self'}
+    # Iterate over a static list of keys since we are modifying the dictionary.
+    for key in list(valid_params):
+        if key in valid_params and key in inf_data_cfg:
+            dset_cfg[key] = inf_data_cfg[key]
 
     # Iterate through the configurations and construct both 
     # 1) The dataloaders corresponding to each set of examples for inference.
@@ -206,7 +217,7 @@ def dataobjs_from_exp(
     # Iterate through the data configurations.
     for d_cfg_opt in data_cfgs:
         # Load the dataset with modified arguments.
-        d_data_cfg = inf_data_cfg.copy()
+        d_data_cfg = dset_cfg.copy()
         # Update the data cfg with the new options.
         d_data_cfg.update(d_cfg_opt)
         # We need to store these object by the contents of d_cfg_opt.
