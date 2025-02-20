@@ -188,23 +188,28 @@ def calculate_batch_stats(
         print("METADATA:\n", metadata_dict)
 
     # We need to separate the metrics into the accumulate and individual stats.
-    accumulate_metrics = {}
-    perpred_metrics = {}
+    accumulate_scores = {}
+    individual_scores = {}
     for met_name, met_cfg in inf_metric_cfg.items():
         if met_cfg['type'] == 'accumulate':
-            accumulate_metrics[met_name] = total_metscore_dict[met_name].item()
+            accumulate_scores[met_name] = total_metscore_dict[met_name].item()
         elif met_cfg['type'] == 'individual':
-            perpred_metrics[met_name] = total_metscore_dict[met_name] 
+            met_score = total_metscore_dict[met_name]
+            # If the metric is a single value, then we need to unsqueeze a batch dimension
+            # because individual perform works by enumerating over the batch dimension.
+            if len(met_score.shape) == 0:
+                met_score = met_score.unsqueeze(0)
+            individual_scores[met_name] = met_score
         else:
             raise ValueError("Metric is not in either accumulate or per prediction stats.")
 
     # Update the accumulate metrics.
-    acc_stat_tracker = trackers['accumulate_stats']
-    if accumulate_metrics != {}:
+    if accumulate_scores != {}:
+        acc_stat_tracker = trackers['accumulate_stats']
         if metadata_dict == {}:
             if not isinstance(acc_stat_tracker, MeterDict):
                 trackers['accumulate_stats'] = MeterDict()
-            trackers['accumulate_stats'].update(accumulate_metrics)
+            trackers['accumulate_stats'].update(accumulate_scores)
             # Print the accumulate stats.
             if inference_cfg["log"].get("verbose", False):
                 print("Accumulate stats:")
@@ -214,7 +219,7 @@ def calculate_batch_stats(
             metadata_key = str(metadata_dict)
             if metadata_key not in acc_stat_tracker:
                 acc_stat_tracker[metadata_key] = MeterDict()
-            acc_stat_tracker[metadata_key].update(accumulate_metrics)
+            acc_stat_tracker[metadata_key].update(accumulate_scores)
             # Print the accumulate stats.
             if inference_cfg["log"].get("verbose", False):
                 print("Accumulate stats:")
@@ -222,8 +227,8 @@ def calculate_batch_stats(
                 print()
 
     # Iterate through all of the collected metrics and add them to the records.
-    if perpred_metrics != {}:
-        for met_name, met_score_tensor in perpred_metrics.items():
+    if individual_scores != {}:
+        for met_name, met_score_tensor in individual_scores.items():
             for met_idx, met_score in enumerate(met_score_tensor):
                 # Get the data id corresponding.
                 data_id = forward_batch["data_ids"][met_idx]
