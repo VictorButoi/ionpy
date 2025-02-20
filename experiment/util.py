@@ -138,12 +138,12 @@ def get_exp_load_info(pretrained_exp_root):
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def load_experiment(
+    exp_class: str,
     checkpoint: str,
     device: str = "cpu",
     df: Optional[Any] = None, 
     path: Optional[str] = None,
     exp_kwargs: Optional[dict] = {},
-    exp_class: Optional[str] = None,
     attr_dict: Optional[dict] = None,
     selection_metric: Optional[str] = None,
 ):
@@ -173,8 +173,7 @@ def load_experiment(
         exp_class = props["experiment"]["class"]
 
     # Load the class
-    exp_class = absolute_import(f'flembed.experiment.{exp_class}')
-    exp_obj = exp_class(
+    exp_obj =  absolute_import(exp_class)(
         exp_path, 
         init_metrics=False, 
         **exp_kwargs

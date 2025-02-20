@@ -24,7 +24,7 @@ def init_inf_object(inference_cfg):
     # BUILD THE MODEL #
     ###################
     inference_exp = load_inference_exp(
-        model_dir=inference_cfg['experiment']['model_dir'],
+        config=inference_cfg['experiment'],
         checkpoint=inference_cfg['model']['checkpoint'],
         to_device=True
     )
@@ -96,7 +96,7 @@ def init_inf_object(inference_cfg):
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def load_inference_exp(
-    model_dir,
+    config: dict,
     to_device: bool = False,
     inf_kwargs: Optional[dict] = {},
     checkpoint: Optional[str] = None,
@@ -105,19 +105,18 @@ def load_inference_exp(
     # our init to 'gpu'.
     if to_device:
         inf_kwargs['device'] = 'cuda'
-    # Get the configs of the experiment
-    load_exp_args = {
-        "checkpoint": checkpoint,
-        "exp_kwargs": {
+    # Load the experiment directly if you give a sub-path.
+    inference_exp = load_experiment(
+        exp_class=config['_class'],
+        checkpoint=checkpoint,
+        exp_kwargs={
             "set_seed": False,
             "load_data": False,
             "load_aug_pipeline": False
         },
         **inf_kwargs,
-        **get_exp_load_info(model_dir),
-    }
-    # Load the experiment directly if you give a sub-path.
-    inference_exp = load_experiment(**load_exp_args)
+        **get_exp_load_info(config['model_dir']),
+    )
     # Set the model to evaluation mode.
     inference_exp.model.train(False)
     # Optionally, move the model to the device.
@@ -172,22 +171,28 @@ def dataobjs_from_exp(
     # Build the augmentation pipeline if we want augs on GPU. #
     ###########################################################
     # Assemble the augmentation pipeline.
-    modified_gpu_aug_cfg = inference_exp.config.get('gpu_augmentations', {}).to_dict()
+    gpu_aug_cfg = inference_exp.config.get('gpu_augmentations', None)
     if 'gpu_augmentations' in inference_cfg:
-        new_gpu_aug_cfg = inference_cfg['gpu_augmentations']
-        modified_gpu_aug_cfg.update(new_gpu_aug_cfg)
-        
+        inf_gpu_aug_cfg_opts = inference_cfg['gpu_augmentations']
+        if gpu_aug_cfg is not None:
+            gpu_aug_cfg.update(inf_gpu_aug_cfg_opts)
+        else:
+            gpu_aug_cfg = inf_gpu_aug_cfg_opts
+    # Convert the Config object to a dictionary.
+    if gpu_aug_cfg is not None and isinstance(gpu_aug_cfg, Config):
+        gpu_aug_cfg = gpu_aug_cfg.to_dict()
+
     # If we have a gpu augmentation pipeline, we need to build it.
-    if modified_gpu_aug_cfg != {}:
-        mode = modified_gpu_aug_cfg.pop("mode")
+    if gpu_aug_cfg is not None:
+        mode = gpu_aug_cfg.pop("mode")
         # Apply any data preprocessing or augmentation
         gpu_aug_pipeline_dict = {
             "train": init_kornia_transforms(
-                modified_gpu_aug_cfg.get('train_transforms', None),
+                gpu_aug_cfg.get('train_transforms', None),
                 mode=mode
             ),
             "val": init_kornia_transforms(
-                modified_gpu_aug_cfg.get('val_transforms', None),
+                gpu_aug_cfg.get('val_transforms', None),
                 mode=mode
             )
         }
@@ -234,7 +239,7 @@ def dataobjs_from_exp(
     inference_cfg.update({
         'inference_data': modified_inf_data_cfg,
         'inference_dataloaders': modified_dataloader_cfg,
-        'inference_gpu_augmentations': modified_gpu_aug_cfg
+        'inference_gpu_augmentations': gpu_aug_cfg
     })
 
     # Return the dataobjs.
