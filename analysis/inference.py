@@ -187,13 +187,13 @@ def calculate_batch_stats(
         # Print the metadata
         print("METADATA:\n", metadata_dict)
 
-    # We need to separate the metrics into the accumulate and per_prediction stats.
+    # We need to separate the metrics into the accumulate and individual stats.
     accumulate_metrics = {}
     perpred_metrics = {}
     for met_name, met_cfg in inf_metric_cfg.items():
         if met_cfg['type'] == 'accumulate':
             accumulate_metrics[met_name] = total_metscore_dict[met_name].item()
-        elif met_cfg['type'] == 'per_prediction':
+        elif met_cfg['type'] == 'individual':
             perpred_metrics[met_name] = total_metscore_dict[met_name] 
         else:
             raise ValueError("Metric is not in either accumulate or per prediction stats.")

@@ -72,7 +72,7 @@ def init_inf_object(inference_cfg):
     ############################################################################
     for metric_name, met_cfg in inference_cfg['metrics'].items():
         # Determine if the metric is accumulate or per prediction.
-        met_type = met_cfg.pop('type')
+        met_type = met_cfg.pop('type', 'individual')
         met_label_type = met_cfg.pop('label_type', None)
         # Add the quality metric to the dictionary.
         inference_cfg['metrics'][metric_name] = {
