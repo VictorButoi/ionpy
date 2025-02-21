@@ -240,3 +240,5 @@ def calculate_batch_stats(
                 }
                 # Add the record to the list.
                 trackers['image_stats'].append(record)
+    
+    print("trackers:", trackers)

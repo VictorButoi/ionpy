@@ -1,11 +1,21 @@
 # Local imports
-from ..experiment.util import absolute_import
 from .containers import augmentations_from_config
 # Torch imports
 import torch.nn as nn
 # Our different augmentation libraries
+import importlib
 import albumentations as A
 import torchvision.transforms as transforms
+
+
+def absolute_import(reference):
+    module, _, attr = reference.rpartition(".")
+    if importlib.util.find_spec(module) is not None:
+        module = importlib.import_module(module)
+        if hasattr(module, attr):
+            return getattr(module, attr)
+
+    raise ImportError(f"Could not import {reference}")
 
 
 class SequentialIgnoreSecond(nn.Sequential):

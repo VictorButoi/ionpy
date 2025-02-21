@@ -4,13 +4,11 @@ import yaml
 import pickle
 import inspect
 import itertools
-from pprint import pprint
 from typing import Optional
 from pydantic import validate_arguments 
 from torch.utils.data import DataLoader
 # ionpy imports
 from ionpy.util import Config
-from ionpy.util.meter import MeterDict
 from ionpy.augmentation import init_kornia_transforms
 from ionpy.experiment.util import absolute_import, eval_config
 # local imports

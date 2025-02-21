@@ -102,14 +102,18 @@ def load_inference_dfs(
                 if inf_group is None:
                     inf_group_dir = root
                 else:
-                    inf_group_dir = root + "/" + inf_group
-                print(inf_group_dir)
+                    inf_group_dir = root + inf_group
+                print("inf_group_dir:", inf_group_dir)
                 group_folders = os.listdir(inf_group_dir)
                 # If 'submitit' is in the highest dir, then we don't have subdirs (new folder structure).
                 if "submitit" in group_folders:
                     # Check to make sure this log wasn't the result of a crash.
                     if results_cfg["options"].get('verify_graceful_exit', True):
-                        verify_graceful_exit(inf_group_dir, log_root=root)
+                        verify_graceful_exit(
+                            log_path=inf_group_dir, 
+                            log_root=root
+                        )
+                    raise ValueError
                     # Check to make sure that this log wasn't the result of a crash.
                     all_inference_log_paths.append(Path(inf_group_dir))
                 # Otherwise, we had separated our runs in 'log sets', which isn't a good level of abstraction.
@@ -190,28 +194,32 @@ def load_inference_dfs(
                     accumulate_obj = pd.read_pickle(log_set_path / "accumulate_stats.pkl")
                     # Since log_metadata_df is one row, get its index.
                     idx = log_metadata_df.index[0]
-                    # If accumulate_dict is a dictionary, then we need to unpack it ourselves.
-                    if isinstance(accumulate_obj, dict):
-                        # Go through the metrics and add them to the metadata dataframe.
-                        for metric_key, metric_stats in accumulate_obj.items():
-                            log_metadata_df.loc[idx, metric_key] = metric_stats['mean']
-                            log_metadata_df.loc[idx, f'{metric_key}_std'] = metric_stats['std']
-                            log_metadata_df.loc[idx, f'{metric_key}_n'] = metric_stats['n']
-                    # If it's already a dataframe, then we can just add it to the metadata dataframe.
-                    elif isinstance(accumulate_obj, pd.DataFrame):
-                        # Tile the metadata df the number of times to match the number of rows in the log_image_df.
-                        tiled_acc_metadata_df = pd.concat([log_metadata_df] * len(accumulate_obj), ignore_index=True)
-                        # Add the columns from the metadata dataframe that have unique values.
-                        log_metadata_df = pd.concat([accumulate_obj, tiled_acc_metadata_df], axis=1)
-                    else:
-                        raise ValueError("accumulate_dict must be either a dictionary or a dataframe.")
+                    # If there are accumulated metrics, then we need to add them to the metadata dataframe.
+                    if len(accumulate_obj) > 0:
+                        # If accumulate_dict is a dictionary, then we need to unpack it ourselves.
+                        if isinstance(accumulate_obj, dict):
+                            # Go through the metrics and add them to the metadata dataframe.
+                            for metric_key, metric_stats in accumulate_obj.items():
+                                log_metadata_df.loc[idx, metric_key] = metric_stats['mean']
+                                log_metadata_df.loc[idx, f'{metric_key}_std'] = metric_stats['std']
+                                log_metadata_df.loc[idx, f'{metric_key}_n'] = metric_stats['n']
+                        # If it's already a dataframe, then we can just add it to the metadata dataframe.
+                        elif isinstance(accumulate_obj, pd.DataFrame):
+                            # Tile the metadata df the number of times to match the number of rows in the log_image_df.
+                            tiled_acc_metadata_df = pd.concat([log_metadata_df] * len(accumulate_obj), ignore_index=True)
+                            # Add the columns from the metadata dataframe that have unique values.
+                            log_metadata_df = pd.concat([accumulate_obj, tiled_acc_metadata_df], axis=1)
+                        else:
+                            raise ValueError("accumulate_dict must be either a dictionary or a dataframe.")
                 # Then we try to load the per prediction metrics.
                 if (log_set_path / "image_stats.pkl").exists():
                     perpred_df = pd.read_pickle(log_set_path / "image_stats.pkl")
-                    # Tile the metadata df the number of times to match the number of rows in the log_image_df.
-                    tiled_pp_metadata_df = pd.concat([log_metadata_df] * len(perpred_df), ignore_index=True)
-                    # Add the columns from the metadata dataframe that have unique values.
-                    log_metadata_df = pd.concat([perpred_df, tiled_pp_metadata_df], axis=1)
+                    # If there are individual predictions, then we need to add them to the metadata dataframe.
+                    if len(perpred_df) > 0:
+                        # Tile the metadata df the number of times to match the number of rows in the log_image_df.
+                        tiled_pp_metadata_df = pd.concat([log_metadata_df] * len(perpred_df), ignore_index=True)
+                        # Add the columns from the metadata dataframe that have unique values.
+                        log_metadata_df = pd.concat([perpred_df, tiled_pp_metadata_df], axis=1)
                 # Add this log to the dataframe.
                 inference_pd_collection.append(log_metadata_df)
         # Finally concatenate all of the inference dataframes.
