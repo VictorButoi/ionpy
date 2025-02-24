@@ -69,6 +69,8 @@ def get_training_configs(
     # This is a required key. We want to get all of the models and vary everything else.
     pretrained_dir_list = flat_exp_cfg_dict.pop('model.pretrained_dir', None) 
     if pretrained_dir_list is not None:
+        if not isinstance(pretrained_dir_list, list):
+            pretrained_dir_list = [pretrained_dir_list]
         flat_exp_cfg_dict['model.pretrained_dir'] = gather_pretrained_models(pretrained_dir_list) 
 
     # Create the ablation options.
@@ -356,7 +358,7 @@ def generate_config_uuids(config_list: List[Config]):
     return processed_cfgs
 
 
-
+@validate_arguments(config=dict(arbitrary_types_allowed=True))
 def gather_pretrained_models(directories: List[str]) -> List[str]:
     """
     Given a list of directory paths, returns those directories that contain a `checkpoints`
