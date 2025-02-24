@@ -71,7 +71,7 @@ def pixel_accuracy(
     y_pred_long, y_true_long = _inputs_as_longlabels(
         y_pred, 
         y_true, 
-        mode, 
+        mode=mode, 
         from_logits=from_logits, 
         discretize=True
     )
