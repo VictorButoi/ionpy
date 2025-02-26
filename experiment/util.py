@@ -183,6 +183,9 @@ def load_experiment(
     if checkpoint is not None:
         exp_path = Path(exp_path)
         weights_path = exp_path / "checkpoints" / f"{checkpoint}.pt"
+        if not weights_path.exists():
+            print("No checkpoint found at: {}, defaulting to last.pt".format(weights_path))
+            weights_path = exp_path / "checkpoints" / "last.pt"
         with weights_path.open("rb") as f:
             state = torch.load(f, map_location=device, weights_only=True)
         exp_obj.model.load_state_dict(state["model"])
