@@ -68,7 +68,7 @@ def get_flat_cfg(
 def load_inference_dfs(
     results_cfg: dict,
     load_cached: bool,
-    inference_dir: str = "/storage/vbutoi/scratch/Flembeddings/inference"
+    inference_dir: str
 ) -> dict:
     # Build a dictionary to store the inference info.
     log_cfg = results_cfg["log"] 
@@ -113,7 +113,6 @@ def load_inference_dfs(
                             log_path=inf_group_dir, 
                             log_root=root
                         )
-                    raise ValueError
                     # Check to make sure that this log wasn't the result of a crash.
                     all_inference_log_paths.append(Path(inf_group_dir))
                 # Otherwise, we had separated our runs in 'log sets', which isn't a good level of abstraction.
@@ -156,7 +155,7 @@ def load_inference_dfs(
                     # Find if there is a key in our config that ends in 'pretrained_dir'.
                     pt_load_key = None
                     for key in logset_flat_cfg:
-                        if key.endswith('pretrained_dir'):
+                        if key.endswith('pretrained_dir') or key.endswith('base_model_dir'):
                             pt_load_key = key
                             break
                     # Check if either is in the logset_flat_cfg (if they aren't we can't load the pretrained config).
