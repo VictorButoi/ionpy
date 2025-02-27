@@ -66,7 +66,8 @@ def pixel_accuracy(
     y_true: Tensor,
     mode: InputMode = "auto",
     from_logits: bool = False,
-    ignore_index: Optional[int] = None
+    ignore_index: Optional[int] = None,
+    batch_reduction: Reduction = "mean"
 ):
     y_pred_long, y_true_long = _inputs_as_longlabels(
         y_pred, 
@@ -79,8 +80,19 @@ def pixel_accuracy(
     if ignore_index is not None:
         y_pred_long = y_pred_long[y_true_long != ignore_index] 
         y_true_long = y_true_long[y_true_long != ignore_index]
-
-    return (y_pred_long == y_true_long).float().mean()
+    
+    scores = (y_pred_long == y_true_long).float()
+    # Flatten the scores so it looks like [B, H* W]
+    scores = scores.view(scores.size(0), -1)
+    # Take the mean of the second dimension
+    scores = scores.mean(dim=1)
+    # If we want to take the mean of the batch, then we take the mean of the scores.
+    if batch_reduction == "mean":
+        return scores.mean()
+    elif batch_reduction == "sum":
+        return scores.sum()
+    else:
+        return scores
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))

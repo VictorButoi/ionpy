@@ -190,14 +190,18 @@ def calculate_batch_stats(
     accumulate_scores = {}
     individual_scores = {}
     for met_name, met_cfg in inf_metric_cfg.items():
+        met_score = total_metscore_dict[met_name]
         if met_cfg['type'] == 'accumulate':
-            accumulate_scores[met_name] = total_metscore_dict[met_name].item()
+            accumulate_scores[met_name] = met_score.item()
         elif met_cfg['type'] == 'individual':
-            met_score = total_metscore_dict[met_name]
             # If the metric is a single value, then we need to unsqueeze a batch dimension
             # because individual perform works by enumerating over the batch dimension.
             if len(met_score.shape) == 0:
                 met_score = met_score.unsqueeze(0)
+            # An important assert we need to do is that the first dimension of the met_score
+            # should be equivalent to the batch-size. Otherwise, we did an unintended reduction.
+            assert met_score.shape[0] == len(forward_batch["data_ids"]),\
+                "The metric score tensor does not have the same batch size as the data_ids."
             individual_scores[met_name] = met_score
         else:
             raise ValueError("Metric is not in either accumulate or per prediction stats.")
@@ -240,3 +244,6 @@ def calculate_batch_stats(
                 }
                 # Add the record to the list.
                 trackers['image_stats'].append(record)
+    # look at the records
+    print(len(trackers['image_stats']))
+    raise ValueError
