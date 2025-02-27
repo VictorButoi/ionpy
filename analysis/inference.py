@@ -201,7 +201,7 @@ def calculate_batch_stats(
             # An important assert we need to do is that the first dimension of the met_score
             # should be equivalent to the batch-size. Otherwise, we did an unintended reduction.
             assert met_score.shape[0] == len(forward_batch["data_ids"]),\
-                "The metric score tensor does not have the same batch size as the data_ids."
+                f"The metric score tensor does not have the same batch size ({met_score.shape[0]}) as the data_ids ({len(forward_batch['data_ids'])}) for metric {met_name}."
             individual_scores[met_name] = met_score
         else:
             raise ValueError("Metric is not in either accumulate or per prediction stats.")
