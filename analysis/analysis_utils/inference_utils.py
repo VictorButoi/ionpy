@@ -256,7 +256,7 @@ def dataobjs_from_exp(
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
-def verify_graceful_exit(log_path: str, log_root: str):
+def verify_graceful_exit(log_root: str, log_path: str):
     submitit_dir = os.path.join(log_root, log_path, "submitit")
     # Check that the submitit directory exists if it doesnt then return.
     try:

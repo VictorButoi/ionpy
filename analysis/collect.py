@@ -1,17 +1,17 @@
-import collections
+# misc imports
+import glob
+import pickle
 import getpass
-import itertools
 import pathlib
-from concurrent.futures import ThreadPoolExecutor
+import itertools
+import collections
+import numpy as np
+import pandas as pd
+import more_itertools
+from tqdm.auto import tqdm
 from fnmatch import fnmatch
 from typing import Optional
-
-import more_itertools
-import numpy as np
-from tqdm.auto import tqdm
-
-import pandas as pd
-
+from concurrent.futures import ThreadPoolExecutor
 # unused import because we want the patching side-effects
 # on pd.DataFrames
 from ..pandas.api import augment_from_attrs
@@ -63,6 +63,7 @@ class ResultsLoader:
         *paths,
         shorthand=True,
         properties=False,
+        verify_graceful_exit=True,
         metadata=False,
         log=False,
         callbacks=False,
@@ -84,6 +85,22 @@ class ResultsLoader:
 
         rows = []
         for folder, cfg in tqdm(zip(folders, configs), leave=False, total=len(folders)):
+            
+            # If we want to verify that the job exited gracefully then we check the submitit folder
+            # (if it exists) and see if the job exited gracefully
+            if verify_graceful_exit:
+                submitit_folder = folder / "submitit"
+                if submitit_folder.exists():
+                    # Glob the result log file
+                    result_log_file = list(glob.glob(str(submitit_folder / "*_result.pkl")))[0]
+                    try:
+                        with open(result_log_file, 'rb') as f:
+                            result = pickle.load(f)[0]
+                        if result != 'success':
+                            raise ValueError(f"Found non-success result in folder: {folder}.")
+                    except Exception as e:
+                        print(f"Error loading log: {e}")
+
             if cfg is None:
                 continue
             cfg = HDict(cfg)

@@ -69,7 +69,9 @@ def get_training_configs(
     # This is a required key. We want to get all of the models and vary everything else.
     pretrained_dir_list = flat_exp_cfg_dict.pop('model.pretrained_dir', None) 
     if pretrained_dir_list is not None:
-        if not isinstance(pretrained_dir_list, list):
+        if isinstance(pretrained_dir_list, tuple):
+            pretrained_dir_list = list(pretrained_dir_list)
+        elif not isinstance(pretrained_dir_list, list):
             pretrained_dir_list = [pretrained_dir_list]
         flat_exp_cfg_dict['model.pretrained_dir'] = gather_pretrained_models(pretrained_dir_list) 
 
