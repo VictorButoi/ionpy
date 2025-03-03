@@ -97,7 +97,7 @@ class ResultsLoader:
                         with open(result_log_file, 'rb') as f:
                             result = pickle.load(f)[0]
                         if result != 'success':
-                            raise ValueError(f"Found non-success result in folder: {folder}.")
+                            raise ValueError(f"Found non-success result in folder: {folder}")
                     except Exception as e:
                         print(f"Error loading log: {e}")
 
