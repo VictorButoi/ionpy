@@ -8,6 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 from pathlib import Path
 from pprint import pprint
+from datetime import datetime
 from pydantic import validate_arguments
 # ionpy imports
 from ionpy.util.config import HDict, valmap
@@ -45,12 +46,31 @@ def hash_list(input_list):
     return hash_hex
 
 
+def get_month_folder(date_str: str) -> str:
+    month, _, year = date_str.split("_")[:3]
+    month_name = datetime.strptime(month, "%m").strftime("%B")
+    return f"{month_name}_{'20' + year}"
+
+
+def get_month_cfg_dir(path: str) -> str:
+    parts = path.split('/')
+    if len(parts) >= 3:
+        date_folder = parts[-3]
+        new_folder = get_month_folder(date_folder)
+        parts.insert(-3, new_folder)
+    return '/'.join(parts)
+
+
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def get_flat_cfg(
     cfg_name: str, 
     cfg_dir: Path
 ):
-    print("cfg_dir:", cfg_dir)
+    # One problem can arise that we have *moved* the folder due to the fact we like to organize our
+    # logs by month. This means that we might have moved it into a new directory, so we need to check.
+    month_cfg_dir = Path(get_month_cfg_dir(str(cfg_dir)))
+    if month_cfg_dir.exists():
+        cfg_dir = month_cfg_dir
     with open(cfg_dir, 'r') as stream:
         logset_cfg_yaml = yaml.safe_load(stream)
     logset_cfg = HDict(logset_cfg_yaml)
