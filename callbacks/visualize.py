@@ -183,8 +183,8 @@ def SegmentationShowPreds(
         img_cmap = None
         if denormalize is not None:
             x = denormalize(x)
-            x = x * 255
-        x = x.permute(0, 2, 3, 1).int() # Move channel dimension to last.
+            x = (x * 255).int()
+        x = x.permute(0, 2, 3, 1) # Move channel dimension to last.
     else:
         img_cmap = "gray"
 
@@ -196,6 +196,8 @@ def SegmentationShowPreds(
             y_hard = (y_hat[:, 1, :, :] > threshold).int()
         else:
             y_hard = torch.argmax(y_hat, dim=1)
+        # Now we want to get the max probs for each pixel.
+        y_hat = torch.max(y_hat, dim=1)[0]
     else:
         if pred_cls != "y_probs":
             y_hat = torch.sigmoid(y_hat)
@@ -220,8 +222,8 @@ def SegmentationShowPreds(
     # Squeeze all tensors in prep.
     x = x.numpy().squeeze() # Move channel dimension to last.
     y = y.numpy().squeeze()
-    y_hard = y_hard.numpy().squeeze()
     y_hat = y_hat.squeeze()
+    y_hard = y_hard.numpy().squeeze()
     # We plot four images per batch item.
     f, axarr = plt.subplots(nrows=bs, ncols=4, figsize=(4 * size_per_image, bs*size_per_image))
 
