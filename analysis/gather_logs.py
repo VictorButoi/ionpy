@@ -50,6 +50,7 @@ def get_flat_cfg(
     cfg_name: str, 
     cfg_dir: Path
 ):
+    print("cfg_dir:", cfg_dir)
     with open(cfg_dir, 'r') as stream:
         logset_cfg_yaml = yaml.safe_load(stream)
     logset_cfg = HDict(logset_cfg_yaml)
@@ -110,8 +111,8 @@ def load_inference_dfs(
                     # Check to make sure this log wasn't the result of a crash.
                     if results_cfg["options"].get('verify_graceful_exit', True):
                         verify_graceful_exit(
-                            log_path=inf_group_dir, 
-                            log_root=root
+                            log_root=root,
+                            log_path=inf_group_dir,
                         )
                     # Check to make sure that this log wasn't the result of a crash.
                     all_inference_log_paths.append(Path(inf_group_dir))
@@ -128,7 +129,10 @@ def load_inference_dfs(
                             if "submitit" in sub_exp_group_folders:
                                 # Check to make sure this log wasn't the result of a crash.
                                 if results_cfg["options"].get('verify_graceful_exit', True):
-                                    verify_graceful_exit(sub_exp_log_path, log_root=root)
+                                    verify_graceful_exit(
+                                        log_root=root,
+                                        log_path=sub_exp_log_path
+                                    ) 
                                 # Check to make sure that this log wasn't the result of a crash.
                                 all_inference_log_paths.append(Path(sub_exp_log_path))
         # We want to make a combined list of all the subdirs from all the all_inference_log_paths.
