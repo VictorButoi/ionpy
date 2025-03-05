@@ -176,7 +176,7 @@ def dataobjs_from_exp(
         else:
             gpu_aug_cfg = inf_gpu_aug_cfg_opts
     # Convert the Config object to a dictionary.
-    if gpu_aug_cfg is not None and isinstance(gpu_aug_cfg, Config):
+    if gpu_aug_cfg is not None and not isinstance(gpu_aug_cfg, dict):
         gpu_aug_cfg = gpu_aug_cfg.to_dict()
 
     # If we have a gpu augmentation pipeline, we need to build it.

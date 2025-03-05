@@ -92,12 +92,18 @@ class ResultsLoader:
                 submitit_folder = folder / "submitit"
                 if submitit_folder.exists():
                     # Glob the result log file
-                    result_log_file = list(glob.glob(str(submitit_folder / "*_result.pkl")))[0]
+                    result_logs = list(glob.glob(str(submitit_folder / "*_result.pkl")))
                     try:
-                        with open(result_log_file, 'rb') as f:
-                            result = pickle.load(f)[0]
-                        if result != 'success':
-                            raise ValueError(f"Found non-success result in folder: {folder}")
+                        if len(result_logs) == 0: 
+                            raise Warning(f"No result logs found in folder: {folder}")
+                        else:
+                            if len(result_logs) > 1:
+                                raise Warning(f"Found multiple result logs in folder: {folder}")
+                            result_log_file = result_logs[0]
+                            with open(result_log_file, 'rb') as f:
+                                result = pickle.load(f)[0]
+                            if result != 'success':
+                                raise ValueError(f"Found non-success result in folder: {folder}")
                     except Exception as e:
                         print(f"Error loading log: {e}")
 
