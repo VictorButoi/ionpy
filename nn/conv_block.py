@@ -16,6 +16,7 @@ class ConvBlock(nn.Module):
 
     in_channels: int
     filters: List[int]
+    stride: Union[int, List[int]] = 1
     kernel_size: Union[int, List[int]] = 3
     norm: Optional[NormType] = None
     activation: Optional[str] = "LeakyReLU"
@@ -39,6 +40,7 @@ class ConvBlock(nn.Module):
             conv = conv_fn(
                 n_in,
                 n_out,
+                stride=self.stride,
                 kernel_size=self.kernel_size,
                 padding=self.kernel_size // 2,
                 padding_mode="zeros",
@@ -69,7 +71,10 @@ class ConvBlock(nn.Module):
                         self.filters[-1], self.norm, dims=self.dims, **(self.norm_kws or {})
                     )
                     self.shortcut.add_module(f"{self.norm}norm", norm_layer)
-
+            else:
+                # When channels match, residual op is y= F(x; W_i) + x
+                # Where W_s is an identity operation
+                self.shortcut.add_module("identity", nn.Identity())
             if self.drop_path > 0:
                 self.shortcut.add_module("drop_path", DropPath(self.drop_path))
 
