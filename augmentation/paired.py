@@ -24,7 +24,6 @@ class PairAugmentationBase(KA.AugmentationBase2D):
             mask = mask[:, None]
             undo_resize = True
         params = params or self.forward_parameters(image.shape, mask.shape)
-        print("params keys:", params.keys())
         image = self.transform_input(image, params)
         mask = self.transform_mask(mask, params)
         self._params = params
