@@ -220,9 +220,7 @@ class TrainExperiment(BaseExperiment):
         for callback in self.callbacks.get(callback_group, []):
             callback(**kwargs)
 
-    def run(
-        self,
-    ):
+    def run(self):
         print(f"Running {str(self)}")
         epochs: int = self.config["train.epochs"]
 
