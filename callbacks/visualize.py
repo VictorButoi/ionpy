@@ -184,10 +184,6 @@ def SegmentationShowPreds(
         if denormalize is not None:
             x = denormalize(x)
             x = (x * 255).int()
-        else:
-            # If x is a float, we need to normalize to [0, 1] for visualization.
-            if x.dtype == torch.float32:
-                x = (x - x.min()) / (x.max() - x.min()) # We need to normalize to [0, 1] for visualization.
         x = x.permute(0, 2, 3, 1) # Move channel dimension to last.
     else:
         img_cmap = "gray"
