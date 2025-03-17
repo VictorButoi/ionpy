@@ -37,7 +37,8 @@ def tuplize_str_dict(d):
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def get_training_configs(
     exp_cfg: dict,
-    base_cfg: Config,
+    default_cfg: Config,
+    base_cfg_list: List[str],
     config_root: Path,
     scratch_root: Path,
     add_date: bool = True
@@ -50,15 +51,23 @@ def get_training_configs(
     # Flatten the experiment config.
     flat_exp_cfg_dict = flatten_cfg2dict(exp_cfg)
 
+    # Load in the different base configs.
+    base_config_list = []
+    for base_cfg_file in base_cfg_list:
+        with open(f"{config_root}/{base_cfg_file}", 'r') as base_file:
+            base_cfg_dict = yaml.safe_load(base_file)
+        base_config_list.append(default_cfg.update([base_cfg_dict]))
+
     # Add the dataset specific details.
     if 'data._class' in flat_exp_cfg_dict:
         train_dataset_name = flat_exp_cfg_dict['data._class'].split('.')[-1]
         dataset_cfg_file = config_root / "training" / f"{train_dataset_name}.yaml"
         if dataset_cfg_file.exists():
-            with open(dataset_cfg_file, 'r') as d_file:
-                dataset_train_cfg = yaml.safe_load(d_file)
-            # Update the base config with the dataset specific config.
-            base_cfg = base_cfg.update([dataset_train_cfg])
+            for cfg_idx, base_cfg in enumerate(base_config_list):
+                with open(dataset_cfg_file, 'r') as d_file:
+                    dataset_train_cfg = yaml.safe_load(d_file)
+                # Update the base config with the dataset specific config.
+                base_config_list[cfg_idx] = base_cfg.update([dataset_train_cfg])
         else:
             print(f"Warning: No dataset specific train config found for {train_dataset_name}.")
     
@@ -83,14 +92,11 @@ def get_training_configs(
     }
 
     # Get the configs
-    cfgs = get_option_product(exp_name, option_set, base_cfg)
-
-    # Return the configs and the base config.
-    base_cfg_dict = base_cfg.to_dict()
+    cfgs = get_option_product(exp_name, option_set, base_cfg_list=base_config_list)
     # Finally, generate the uuid that identify each of the configs.
     cfgs = generate_config_uuids(cfgs)
 
-    return base_cfg_dict, cfgs
+    return cfgs
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -314,7 +320,7 @@ def proc_cfg_name(
 def get_option_product(
     exp_name,
     option_set,
-    base_cfg,
+    base_cfg_list: List[Config],
     add_wandb_string: bool = True
 ):
     # If option_set is not a list, make it a list
@@ -322,27 +328,28 @@ def get_option_product(
     # Get all of the keys that have length > 1 (will be turned into different options)
     varying_keys = [key for key, value in option_set.items() if len(value) > 1]
     # Iterate through all of the different options
-    for cfg_update in dict_product(option_set):
-        # If one of the keys in the update is a dictionary, then we need to wrap
-        # it in a list, otherwise the update will collapse the dictionary.
-        for key in cfg_update:
-            if isinstance(cfg_update[key], dict):
-                cfg_update[key] = [cfg_update[key]]
-        # Get the name that will be used for WANDB tracking and update the base with
-        # this version of the experiment.
-        if add_wandb_string:
-            cfg_name_args = proc_cfg_name(exp_name, varying_keys, cfg_update)
-            cfg = base_cfg.update([cfg_update, cfg_name_args])
-        else:
-            cfg = base_cfg.update([cfg_update])
-        # Verify it's a valid config
-        check_missing(cfg)
-        # Make sure that our string tuples are converted to actual tuples.
-        cfg_dict = cfg.to_dict()
-        tuplized_cfg = Config(tuplize_str_dict(cfg_dict))
-        # Finally, we need to 'tuplize' it, which means that we conver the tuples 
-        # hiding as string into actual tuples.
-        cfg_list.append(tuplized_cfg)
+    for base_cfg in base_cfg_list:
+        for cfg_update in dict_product(option_set):
+            # If one of the keys in the update is a dictionary, then we need to wrap
+            # it in a list, otherwise the update will collapse the dictionary.
+            for key in cfg_update:
+                if isinstance(cfg_update[key], dict):
+                    cfg_update[key] = [cfg_update[key]]
+            # Get the name that will be used for WANDB tracking and update the base with
+            # this version of the experiment.
+            if add_wandb_string:
+                cfg_name_args = proc_cfg_name(exp_name, varying_keys, cfg_update)
+                cfg = base_cfg.update([cfg_update, cfg_name_args])
+            else:
+                cfg = base_cfg.update([cfg_update])
+            # Verify it's a valid config
+            check_missing(cfg)
+            # Make sure that our string tuples are converted to actual tuples.
+            cfg_dict = cfg.to_dict()
+            tuplized_cfg = Config(tuplize_str_dict(cfg_dict))
+            # Finally, we need to 'tuplize' it, which means that we conver the tuples 
+            # hiding as string into actual tuples.
+            cfg_list.append(tuplized_cfg)
     return cfg_list
 
 
