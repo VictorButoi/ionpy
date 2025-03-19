@@ -82,14 +82,12 @@ def run_exp(
 def submit_exps(
     cfg_list: List,
     exp_cfg: dict,
-    base_cfg: dict,
     submit_cfg: dict,
     experiment_class: Any
 ):
     # Save the experiment configs so we can know what we ran.
     log_exp_config_objs(
         exp_cfg=exp_cfg, 
-        base_cfg=base_cfg, 
         submit_cfg=submit_cfg,
     )
     # Modify a few things relating to callbacks.

@@ -25,7 +25,6 @@ def submit_input_check(
 
 def log_exp_config_objs(
     exp_cfg: dict, 
-    base_cfg: dict,
     submit_cfg: dict,
 ):
     # Get the experiment name.
@@ -43,7 +42,6 @@ def log_exp_config_objs(
     exp_root = Path(f"{submit_cfg['scratch_root']}/{submit_cfg['group']}/{mod_exp_name}")
 
     # Save the base config and the experiment config.
-    dump_yaml(base_cfg, exp_root / "base.yml") # SAVE #1: Experiment config
     dump_yaml(exp_cfg, exp_root / "experiment.yml") # SAVE #1: Experiment config
 
 
