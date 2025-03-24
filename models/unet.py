@@ -15,12 +15,12 @@ class UNet(nn.Module):
     in_channels: int
     out_channels: int
     filters: List[int]
-    up_filters: Optional[List[int]] = None
-    out_activation: Optional[str] = None
+    dims: int = 2
     convs_per_block: int = 1
     skip_connections: bool = True
-    dims: int = 2
     interpolation_mode: str = "linear"
+    out_activation: Optional[str] = None
+    up_filters: Optional[List[int]] = None
     conv_kws: Optional[Dict[str, Any]] = None
 
     def __post_init__(self):
