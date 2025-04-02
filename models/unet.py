@@ -1,12 +1,13 @@
-from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
-
+# Torch imports 
 import torch
 from torch import Tensor
 from torch import nn
 import torch.nn.functional as F
-
+# Local imports
 from ..nn import get_nonlinearity, ConvBlock
+# Misc imports
+from dataclasses import dataclass
+from typing import List, Optional, Dict, Any, Union
 
 
 @dataclass(eq=False, repr=False)
@@ -17,7 +18,7 @@ class UNet(nn.Module):
     filters: List[int]
     dims: int = 2
     convs_per_block: int = 1
-    skip_connections: bool = True
+    skip_connections: Union[bool, List[bool]] = True
     interpolation_mode: str = "linear"
     out_activation: Optional[str] = None
     up_filters: Optional[List[int]] = None
@@ -45,10 +46,16 @@ class UNet(nn.Module):
             c = ConvBlock(in_ch, [out_ch] * self.convs_per_block, **conv_args)
             self.down_blocks.append(c)
 
+        # If our skip connections are just a boolean, we need to create a list of the same length as the number of levels*
+        if isinstance(self.skip_connections, bool):
+            self.skip_connections = [self.skip_connections] * len(up_filters)
+        assert len(self.skip_connections) == len(up_filters),\
+            f"Skip connections list must be the same length as the number of levels. Got {len(self.skip_connections)} and {len(up_filters)}"
+
         prev_out_ch = filters[-1]
         skip_chs = filters[-2::-1]
-        for skip_ch, out_ch in zip(skip_chs, up_filters):
-            in_ch = skip_ch + prev_out_ch if self.skip_connections else prev_out_ch
+        for l_idx, (skip_ch, out_ch) in enumerate(zip(skip_chs, up_filters)):
+            in_ch = skip_ch + prev_out_ch if self.skip_connections[-(l_idx + 1)] else prev_out_ch # We go from the end because the first index is the top level.
             c = ConvBlock(in_ch, [out_ch] * self.convs_per_block, **conv_args)
             prev_out_ch = out_ch
             self.up_blocks.append(c)
@@ -97,7 +104,7 @@ class UNet(nn.Module):
                 align_corners=True,
                 mode=self.interpolation_mode,
             )
-            if self.skip_connections:
+            if self.skip_connections[-i]: # We go from the end because the first index is the top level.
                 x = torch.cat([x, conv_outputs[-i]], dim=1)
             x = conv_block(x)
 

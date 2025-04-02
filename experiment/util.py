@@ -138,10 +138,11 @@ def get_exp_load_info(pretrained_exp_root):
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def load_experiment(
-    exp_class: str,
+    exp_class: Any,
     checkpoint: str,
     device: str = "cpu",
     df: Optional[Any] = None, 
+    weights_only: bool = False,
     path: Optional[str] = None,
     exp_kwargs: Optional[dict] = {},
     attr_dict: Optional[dict] = None,
@@ -164,16 +165,11 @@ def load_experiment(
         assert attr_dict is None, "Cannot provide both a path and an attribute dictionary."
         exp_path = path
 
-    # Load the experiment
-    if exp_class is None:
-        # Get the experiment class
-        properties_dir = Path(exp_path) / "properties.json"
-        with open(properties_dir, 'r') as prop_file:
-            props = json.loads(prop_file.read())
-        exp_class = props["experiment"]["class"]
-
-    # Load the class
-    exp_obj =  absolute_import(exp_class)(
+    # Import the class if we are passing in a string.
+    if isinstance(exp_class, str):
+        exp_class = absolute_import(exp_class)
+    # Actually load the class object.
+    exp_obj = exp_class(
         exp_path, 
         init_metrics=False, 
         **exp_kwargs
@@ -187,7 +183,7 @@ def load_experiment(
             print("No checkpoint found at: {}, defaulting to last.pt".format(weights_path))
             weights_path = exp_path / "checkpoints" / "last.pt"
         with weights_path.open("rb") as f:
-            state = torch.load(f, map_location=device, weights_only=True)
+            state = torch.load(f, weights_only=weights_only)
         exp_obj.model.load_state_dict(state["model"])
         print(f"Loaded model from: {weights_path}")
     
