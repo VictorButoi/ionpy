@@ -11,3 +11,4 @@ from .selfsuper import SelfsuperDataset, self_supervised
 from .vision import *
 from .image_folder_tar import ImageFolderTar
 from .cuda import CUDACachedDataset
+from .segment2d import Segment2D
