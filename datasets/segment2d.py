@@ -36,6 +36,7 @@ class Segment2D(ThunderDataset, DatapathMixin):
     min_label_density: float = 0.0
     background: bool = False
     transforms: Optional[Any] = None
+    num_examples: Optional[int] = None
     iters_per_epoch: Optional[int] = None
     preload: bool = False
     data_root: Optional[str] = None
@@ -65,6 +66,15 @@ class Segment2D(ThunderDataset, DatapathMixin):
             valid_subjects = set(all_subjects[label_density > self.min_label_density])
             subjects = [s for s in subjects if s in valid_subjects]
 
+        # If num_examples is not None, then subset the dataset
+        if self.num_examples is not None:
+            if self.num_examples > len(subjects):
+                raise ValueError(
+                    f"num_examples {self.num_examples} is greater than the number of samples {len(subjects)}"
+                )
+            subjects = subjects[: self.num_examples]
+
+        print("Number of subjects: ", len(subjects))
         self.samples = subjects
         self.subjects = subjects
 
