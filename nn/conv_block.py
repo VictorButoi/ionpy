@@ -20,6 +20,7 @@ class ConvBlock(nn.Module):
     kernel_size: Union[int, List[int]] = 3
     norm: Optional[NormType] = None
     activation: Optional[str] = "LeakyReLU"
+    output_activation: Optional[str] = "LeakyReLU"
     residual: bool = False
     drop_path: float = 0.0
     init_distribution: Optional[str] = "kaiming_normal"
@@ -32,6 +33,7 @@ class ConvBlock(nn.Module):
 
         conv_fn = getattr(nn, f"Conv{self.dims}d")
         nonlinearity_fn = get_nonlinearity(self.activation)
+        out_nonlinearity_fn = get_nonlinearity(self.output_activation)
 
         self.F = nn.Sequential()
 
@@ -47,8 +49,12 @@ class ConvBlock(nn.Module):
             )
             self.F.add_module(f"n{i}_conv{self.dims}d", conv)
 
-            if self.activation is not None:
-                self.F.add_module(f"n{i}_act", nonlinearity_fn())
+            if i < len(all_channels) - 2:
+                if self.activation is not None:
+                    self.F.add_module(f"n{i}_act", nonlinearity_fn())
+            else:
+                if self.output_activation is not None:
+                    self.F.add_module(f"n{i}_act", out_nonlinearity_fn())
 
             if self.norm is not None:
                 norm_layer = get_normlayer(n_out, self.norm, dims=self.dims, **(self.norm_kws or {}))
