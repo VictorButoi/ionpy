@@ -197,7 +197,7 @@ def get_inference_configs(
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def get_restart_configs(
     exp_cfg: dict,
-    base_cfg: Config,
+    default_cfg: Config,
     config_root: Path,
     scratch_root: Path,
     add_date: bool = True,
@@ -205,7 +205,7 @@ def get_restart_configs(
     # We need to flatten the experiment config to get the different options.
     # Building new yamls under the exp_name name for model type.
     exp_name = exp_cfg.pop('group')
-    restart_exp_root = get_exp_root(exp_name, group="restarted", add_date=add_date, scratch_root=scratch_root)
+    restart_exp_root = get_exp_root(exp_name, group="training", add_date=add_date, scratch_root=scratch_root)
 
     # Get the flat version of the experiment config.
     restart_cfg_dict = flatten_cfg2dict(exp_cfg)
@@ -225,38 +225,30 @@ def get_restart_configs(
     all_pre_models = gather_pretrained_models(pretrained_dir_list) 
 
     # Listify the dict for the product.
-    listy_pt_cfg_dict = {
+    option_set = {
         'log.root': [str(restart_exp_root)],
         **listify_dict(restart_cfg_dict)
     }
     
     # Go through all the pretrained models and add the new options for the restart.
-    cfgs = []
+    pt_base_cfgs = []
     for pt_dir in all_pre_models:
         # Load the pre-trained model config.
         with open(f"{pt_dir}/config.yml", 'r') as file:
             pt_exp_cfg = Config(yaml.safe_load(file))
         # Make a copy of the listy_pt_cfg_dict.
-        pt_listy_cfg_dict = listy_pt_cfg_dict.copy()
-        pt_listy_cfg_dict['train.pretrained_dir'] = [pt_dir] # Put the pre-trained model back in.
-        # Update the pt_exp_cfg with the restart_cfg.
-        pt_restart_base_cfg = pt_exp_cfg.update([base_cfg])
-        # Get the different options for this pre-trained model.
-        pt_cfgs = get_option_product(
-            exp_name, 
-            pt_listy_cfg_dict, 
-            pt_restart_base_cfg, 
-            add_wandb_string=False
-        )
-        # Append the list of configs for this pre-trained model.
-        cfgs += pt_cfgs
+        pt_default_cfg = default_cfg.update([pt_exp_cfg])
+        # Turn this into a dict.
+        pt_default_cfg_dict = pt_default_cfg.to_dict()
+        pt_default_cfg_dict['train']['pretrained_dir'] = pt_dir
+        pt_base_cfgs.append(Config(pt_default_cfg_dict))
 
-    # Return the configs and the base config.
-    base_cfg_dict = base_cfg.to_dict()
+    # Get the configs
+    cfgs = get_option_product(exp_name, option_set, base_cfg_list=pt_base_cfgs)
     # Finally, generate the uuid that identify each of the configs.
     cfgs = generate_config_uuids(cfgs)
 
-    return base_cfg_dict, cfgs
+    return cfgs
 
 
 def list2tuple(val):

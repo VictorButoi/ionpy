@@ -7,7 +7,7 @@ from pprint import pprint
 # Torch imports
 import torch
 from torch import nn
-from torch.amp import GradScaler
+from torch.cuda.amp import GradScaler
 from torch.utils.data import DataLoader
 # Local imports
 from .base import BaseExperiment
