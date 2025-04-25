@@ -168,6 +168,7 @@ def SegmentationShowPreds(
 
     # Get the predicted label
     y_hat = batch[pred_cls].detach().cpu()
+
     bs = y.shape[0]
     num_pred_classes = y_hat.shape[1]
 
