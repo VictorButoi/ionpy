@@ -178,16 +178,6 @@ def SegmentationShowPreds(
         cmap_name = "seg_map"
         label_cm = mcolors.LinearSegmentedColormap.from_list(cmap_name, colors, N=num_pred_classes)
 
-    # If x is rgb (has 3 input channels)
-    if x.shape[1] == 3:
-        img_cmap = None
-        if denormalize is not None:
-            x = denormalize(x)
-            x = (x * 255).int()
-        x = x.permute(0, 2, 3, 1) # Move channel dimension to last.
-    else:
-        img_cmap = "gray"
-
     # Make a hard prediction.
     if num_pred_classes > 1:
         if pred_cls != "y_probs":
@@ -219,6 +209,18 @@ def SegmentationShowPreds(
         y_hat = torch.stack([y_hat[i, ..., max_slices[i]] for i in range(bs)])
         y_hard = torch.stack([y_hard[i, ..., max_slices[i]] for i in range(bs)])
     
+    # If x is rgb (has 3 input channels)
+    if x.shape[1] == 3:
+        img_cmap = None
+        if denormalize is not None:
+            x = denormalize(x)
+            x = (x * 255).int()
+        # Move the 1st dmension to the end, where we don't know the total
+        # number of dims (e.g. 2D, 3D, etc).
+        x = x.permute(0, *range(2, len(x.shape)), 1) # Move channel dimension to last.
+    else:
+        img_cmap = "gray"
+
     # Squeeze all tensors in prep.
     x = x.numpy().squeeze() # Move channel dimension to last.
     y = y.numpy().squeeze()
