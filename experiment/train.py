@@ -102,8 +102,8 @@ class TrainExperiment(BaseExperiment):
     def build_optim(self):
         optim_cfg = self.config["optim"].to_dict()
 
-        if 'lr_scheduler' in optim_cfg:
-            self.lr_scheduler = eval_config(optim_cfg.pop('lr_scheduler', None))
+        # First we need to get the optimizer schduler.
+        lr_scheduler_cfg = optim_cfg.pop('lr_scheduler', None)
 
         if "weight_decay" in optim_cfg:
             optim_cfg["params"] = split_param_groups_by_weight_decay(
@@ -112,6 +112,12 @@ class TrainExperiment(BaseExperiment):
         else:
             optim_cfg["params"] = self.model.parameters()
         self.optim = eval_config(optim_cfg)
+
+        # If our scheduler is not none, then we need to set it up here.
+        if lr_scheduler_cfg is not None:
+            self.lr_scheduler = absolute_import(lr_scheduler_cfg.pop("_class"))(
+                self.optim, T_max=self.config["train"]["epochs"], **lr_scheduler_cfg
+            )
 
         # If the pretrained_dir exists, then load the optimizer state 
         # dict.
@@ -242,26 +248,28 @@ class TrainExperiment(BaseExperiment):
         checkpoint_freq: int = self.config.get("log.checkpoint_freq", 1)
         eval_freq: int = self.config.get("train.eval_freq", 1)
 
+        # Either we run a validation epoch first and then do a round of training...
+        if not self.config['experiment'].get('val_first', False):
+            epoch_order = ["train", "val"]
+        else:
+            # Or we run a training epoch first and then do a round of validation...
+            epoch_order = ["val", "train"]
+
+        # Go through epochs of training.
         for epoch in range(last_epoch + 1, epochs):
             self._epoch = epoch
-
-            # Either we run a validation epoch first and then do a round of training...
-            if not self.config['experiment'].get('val_first', False):
-                print(f"Start training epoch {epoch}.")
-                self.run_phase("train", epoch)
-
-            # Evaluate the model on the validation set.
-            if eval_freq > 0 and (epoch % eval_freq == 0 or epoch == epochs - 1):
-                print(f"Start validation round at {epoch}.")
-                self.run_phase("val", epoch)
-
-            # ... or we run a training epoch first and then do a round of validation.
-            if self.config['experiment'].get('val_first', False):
-                print(f"Start training epoch {epoch}.")
-                self.run_phase("train", epoch)
+            
+            # Do a round of phases.
+            for eo in epoch_order:
+                print(f"Start {eo} epoch {epoch}.")
+                if eo == "train" or eval_freq > 0 and (epoch % eval_freq == 0 or epoch == epochs - 1):
+                    self.run_phase(eo, epoch) 
 
             if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
                 self.checkpoint()
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
             self.run_callbacks("epoch", epoch=epoch)
 
