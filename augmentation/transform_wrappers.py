@@ -3,6 +3,7 @@ from .containers import augmentations_from_config
 # Torch imports
 import torch.nn as nn
 # Our different augmentation libraries
+import monai
 import importlib
 import albumentations as A
 import torchvision.transforms as transforms
@@ -47,6 +48,14 @@ def init_kornia_transforms(transform_list, mode=None):
             return SequentialIgnoreSecond(*transform_list)  # Kornia requires a module-based composition
         else:
             return augmentations_from_config(transform_list)
+
+
+def init_monai_transforms(transform_list):
+    transform_list = initialize_transforms(transform_list)
+    if transform_list is None:
+        return None
+    else:
+        return monai.transforms.Compose(transform_list)
 
 
 def initialize_transforms(transform_list):

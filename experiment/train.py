@@ -118,6 +118,8 @@ class TrainExperiment(BaseExperiment):
             self.lr_scheduler = absolute_import(lr_scheduler_cfg.pop("_class"))(
                 self.optim, T_max=self.config["train"]["epochs"], **lr_scheduler_cfg
             )
+        else:
+            self.lr_scheduler = None
 
         # If the pretrained_dir exists, then load the optimizer state 
         # dict.
