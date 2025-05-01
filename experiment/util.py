@@ -173,7 +173,6 @@ def load_experiment(
     exp_obj = exp_class(
         exp_path, 
         init_metrics=False, 
-        load_data=load_data,
         **exp_kwargs
     )
 

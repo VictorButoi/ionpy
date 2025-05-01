@@ -24,7 +24,7 @@ def run_inference(
     else:
         inference_cfg_dict = config
     # Ensure that inference seed is the same.
-    fix_seed(inference_cfg_dict['experiment']['inference_seed'])
+    fix_seed(inference_cfg_dict['experiment'].get('inference_seed', 40))
     # Initialize all the objects needed for inference.
     inference_init_obj = inf_utils.init_inf_object(inference_cfg_dict)
     inf_data_opts = inference_init_obj['dataobjs'].keys()

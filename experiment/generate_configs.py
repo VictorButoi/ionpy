@@ -102,10 +102,11 @@ def get_training_configs(
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def get_inference_configs(
     exp_cfg: dict,
-    base_cfg: Config,
+    default_cfg: Config,
     config_root: Path,
     scratch_root: Path,
-    add_date: bool = True
+    add_date: bool = True,
+    base_cfg_list: Optional[List[str]] = None,
 ):
     # We need to flatten the experiment config to get the different options.
     # Building new yamls under the exp_name name for model type.
@@ -177,7 +178,12 @@ def get_inference_configs(
             )
             # Update the base config with the new options. Note the order is important here, such that 
             # the exp_cfg_update is the last thing to update.
-            cfg = Config(dataset_inf_cfg_dict).update([base_cfg, exp_cfg_update])
+            if base_cfg_list is not None:
+                cfg = Config(dataset_inf_cfg_dict).update([base_cfg_list, exp_cfg_update])
+            else:
+                cfg = Config(dataset_inf_cfg_dict).update([exp_cfg_update]) 
+            # Update the base config with the dataset specific config.
+            cfg = default_cfg.update([cfg])
             # Make sure that we don't have any tuples.
             cfg_dict = cfg.to_dict()
             tuplized_cfg = Config(tuplize_str_dict(cfg_dict))
@@ -185,13 +191,10 @@ def get_inference_configs(
             check_missing(tuplized_cfg)
             # Add it to the total list of inference options.
             cfgs.append(tuplized_cfg)
-
-    # Return the configs and the base config.
-    base_cfg_dict = base_cfg.to_dict()
     # Finally, generate the uuid that identify each of the configs.
     cfgs = generate_config_uuids(cfgs)
 
-    return base_cfg_dict, cfgs
+    return cfgs
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))

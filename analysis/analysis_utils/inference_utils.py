@@ -181,18 +181,32 @@ def dataobjs_from_exp(
 
     # If we have a gpu augmentation pipeline, we need to build it.
     if gpu_aug_cfg is not None:
-        mode = gpu_aug_cfg.pop("mode")
-        # Apply any data preprocessing or augmentation
-        gpu_aug_pipeline_dict = {
-            "train": init_kornia_transforms(
-                gpu_aug_cfg.get('train_transforms', None),
-                mode=mode
-            ),
-            "val": init_kornia_transforms(
-                gpu_aug_cfg.get('val_transforms', None),
-                mode=mode
-            )
-        }
+        if "voxynth" in gpu_aug_cfg:
+            from ionpy.augmentation import build_voxynth_aug_pipeline
+            voxynth_aug_cfg = gpu_aug_cfg["voxynth"]
+            # Apply any data preprocessing or augmentation
+            gpu_aug_pipeline_dict = {
+                "train": build_voxynth_aug_pipeline(
+                    voxynth_aug_cfg.get('train_transforms'),
+                ),
+                "val": build_voxynth_aug_pipeline(
+                    voxynth_aug_cfg.get('val_transforms'),
+                )
+            }
+        else:
+            from ionpy.augmentation import init_kornia_transforms
+            mode = gpu_aug_cfg.pop("mode", "both")
+            # Apply any data preprocessing or augmentation
+            gpu_aug_pipeline_dict = {
+                "train": init_kornia_transforms(
+                    gpu_aug_cfg.get('train_transforms'),
+                    mode=mode
+                ),
+                "val": init_kornia_transforms(
+                    gpu_aug_cfg.get('val_transforms'),
+                    mode=mode
+                )
+            }
     else:
         gpu_aug_pipeline_dict = {} 
     
