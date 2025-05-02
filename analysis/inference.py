@@ -80,6 +80,10 @@ def standard_dataloader_loop(
                     y["image"] = y_in
                 else:
                     y = y_in
+        # If we are dealing with RGB mode, then we need to duplicate the img in the channel dim.
+        # If the mode is rgb, then we need to duplicate the image 3 times.
+        if inf_cfg_dict['train'].get('color_mode','default') == "rgb" and x.shape[1] == 1:
+            x = torch.cat([x] * 3, axis=1)
         # Pack the batch into a dictionary.
         forward_batch = {
             "img": x, 
