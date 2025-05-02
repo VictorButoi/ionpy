@@ -15,6 +15,7 @@ from ..util.ioutil import autosave
 from ..util.meter import MeterDict
 from ..util.torchutils import to_device
 from .util import absolute_import, eval_config
+from ..nn.ema import EMAWrapper
 from ..nn.util import num_params, split_param_groups_by_weight_decay
 
 
@@ -96,6 +97,12 @@ class TrainExperiment(BaseExperiment):
                 state = torch.load(f, map_location=self.device, weights_only=True)
             self.model.load_state_dict(state["model"])
             print(f"Loaded model from: {weights_path}")
+        # If the model has an EMA wrapper, then we need to wrap it.
+        if 'ema' in self.config:
+            self.model = EMAWrapper(
+                self.model,
+                **self.config['ema'].to_dict()
+            ) 
         # Move the model to the device
         self.to_device()
 
