@@ -169,6 +169,7 @@ def load_experiment(
     # Import the class if we are passing in a string.
     if isinstance(exp_class, str):
         exp_class = absolute_import(exp_class)
+
     # Actually load the class object.
     exp_obj = exp_class(
         exp_path, 

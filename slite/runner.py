@@ -117,14 +117,12 @@ def submit_exps(
 def submit_jobs(
     cfg_list: List,
     exp_cfg: dict,
-    base_cfg: dict,
     submit_cfg: dict,
     job_func: Callable
 ):
     # Save the experiment configs so we can know what we ran.
     log_exp_config_objs(
         exp_cfg=exp_cfg, 
-        base_cfg=base_cfg, 
         submit_cfg=submit_cfg,
     )
     # Modify a few things relating to callbacks.

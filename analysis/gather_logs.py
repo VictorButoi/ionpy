@@ -90,7 +90,7 @@ def load_inference_dfs(
     results_cfg: dict,
     load_cached: bool,
     inference_dir: str
-) -> dict:
+) -> pd.DataFrame:
     # Build a dictionary to store the inference info.
     log_cfg = results_cfg["log"] 
 
@@ -309,3 +309,77 @@ def load_inference_dfs(
     # Finally, return the dictionary of inference info.
     return inference_df 
 
+def load_nnunet_result_dfs(
+    results_cfg: dict,
+    inference_dir: str
+) -> pd.DataFrame:
+    # We need to ultimately load 2 things:
+    # 1) a file called summary.json
+    # 2) a filed called debug.json
+    nnUNet_inf_root = Path(inference_dir)
+    nnUnet_paths = [
+        nnUNet_inf_root / exp_name for\
+        exp_name in results_cfg["log"]["exp_names"]\
+    ]
+
+    # We have a few skip keys that we will want to ignore in the debug.json
+    metadata_skip_keys = [
+        "configuration_manager",
+        "my_init_kwargs",
+        "plans_manager",
+    ]
+
+    # For each of the nnUNet paths, we want to walk its subdirectories to find these files.
+    total_df = pd.DataFrame()
+    for nnUnet_path in nnUnet_paths:
+        # We want to find all the summary.json files
+        summary_files = list(nnUnet_path.rglob("summary.json"))
+        debug_files = list(nnUnet_path.rglob("debug.json"))
+        # The legnth of these lists should both be 1.
+        assert len(summary_files) == 1, f"Found {len(summary_files)} summary.json files in {nnUnet_path}"
+        assert len(debug_files) == 1, f"Found {len(debug_files)} debug.json files in {nnUnet_path}"
+
+        # PREPARE THE METADATA
+        # Load the debug.json file
+        with debug_files[0].open("r") as f:
+            metadata = json.load(f)
+        # Drop the skip keys from the debug.json file
+        for key in metadata_skip_keys:
+            if key in metadata:
+                del metadata[key]
+
+        # PREPARE THE SCORES
+        # Load the summary.json file
+        with summary_files[0].open("r") as f:
+            score_summary = json.load(f)
+        # Now go through each of the individual scores, and add the metadata to it.
+        record_per_pred = []
+        for pred_dict in score_summary['metric_per_case']:
+            # Get the subj_name
+            data_id = pred_dict['prediction_file'].split("/")[-1].split(".")[0]
+            # Extract the metrics
+            metrics_dict = pred_dict['metrics']['1']
+            # Go through each of the metrics and add it as a row.
+            for met_name, met_score in metrics_dict.items():
+                # Create a new dict for each metric
+                metric_record = {
+                    "data_id": data_id,
+                    "image_metric": met_name,
+                    "metric_score": met_score,
+                    **metadata,
+                }
+                # Add the pred_dict to the record_per_pred list
+                record_per_pred.append(metric_record)
+        # Convert the record_per_pred list to a pandas dataframe
+        scores_df = pd.DataFrame(record_per_pred)
+        scores_df['log_set'] = scores_df['output_folder_base']
+        # Add the scores_df to the total_df
+        total_df = pd.concat([total_df, scores_df], ignore_index=True)
+    # Get the number of rows in image_info_df for each log set.
+    final_num_rows_per_log_set = total_df.groupby(["log_set"]).size()
+    # Print information about each log set.
+    print("Finished loading inference stats.")
+    if results_cfg.get("options",{}).get("print_row_summary", True):
+        print(f"Log amounts: {final_num_rows_per_log_set}")
+    # Return the total_df
+    return total_df
