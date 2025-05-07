@@ -1,9 +1,6 @@
-# Local imports
-from .containers import augmentations_from_config
 # Torch imports
 import torch.nn as nn
 # Our different augmentation libraries
-import monai
 import importlib
 import albumentations as A
 import torchvision.transforms as transforms
@@ -17,11 +14,6 @@ def absolute_import(reference):
             return getattr(module, attr)
 
     raise ImportError(f"Could not import {reference}")
-
-
-class SequentialIgnoreSecond(nn.Sequential):
-    def forward(self, x, y):  # Ignore the second argument
-        return super().forward(x), y
 
 def init_torch_transforms(transform_listt):
     transform_list = initialize_transforms(transform_listt)
@@ -37,25 +29,6 @@ def init_album_transforms(transform_list):
         return None
     else:
         return A.Compose(transform_list)
-
-
-def init_kornia_transforms(transform_list, mode=None):
-    if transform_list is None:
-        return None
-    else:
-        if mode == 'image':
-            transform_list = initialize_transforms(transform_list)
-            return SequentialIgnoreSecond(*transform_list)  # Kornia requires a module-based composition
-        else:
-            return augmentations_from_config(transform_list)
-
-
-def init_monai_transforms(transform_list):
-    transform_list = initialize_transforms(transform_list)
-    if transform_list is None:
-        return None
-    else:
-        return monai.transforms.Compose(transform_list)
 
 
 def initialize_transforms(transform_list):
