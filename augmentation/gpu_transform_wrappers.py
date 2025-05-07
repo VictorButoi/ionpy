@@ -1,8 +1,10 @@
-# Local imports
-import torch.nn as nn
+# Augmentation library imports
 import albumentations as A
 import monai.transforms as mt
 import torchvision.transforms as T
+# Mics imports
+import inspect
+import torch.nn as nn
 # Local imports
 from .transform_wrappers import initialize_transforms
 from .containers import augmentations_from_config
@@ -24,15 +26,36 @@ class SequentialIgnoreSecond(nn.Sequential):
     def forward(self, x, y):  # Ignore the second argument
         return super().forward(x), y
 
+
 def build_monai_pipeline(transform_list):
+    """
+    Given a list like:
+      [{"RandFlipd": {...}},
+       {"RandAdjustContrastd": {"keys": [...], "prob": 0.15, "gamma_range": [0.75,1.25]}},
+       ...]
+    this will:
+      - auto-filter unsupported kwargs (gamma_range in this example)
+      - or raise a clear TypeError explaining what went wrong
+    """
     if not transform_list:
         return None
+
     ops = []
     for t in transform_list:
-        # each item is {"RandFlipd": {...}}, etc.
         name, params = next(iter(t.items()))
         cls = getattr(mt, name)
-        ops.append(cls(**params))
+        sig = inspect.signature(cls.__init__)
+        # drop 'self' and any unexpected keys
+        valid_keys = set(sig.parameters) - {"self", "kwargs"}
+        filtered = {k: v for k, v in params.items() if k in valid_keys}
+        bad_keys = set(params) - valid_keys
+
+        if bad_keys:
+            raise TypeError(
+                f"{name} got unexpected argument(s): {bad_keys!r}\n"
+                f"Valid args are: {sorted(valid_keys)}"
+            )
+        ops.append(cls(**filtered))
     return mt.Compose(ops)
 
 def build_albumentations_pipeline(transform_list):
@@ -67,6 +90,8 @@ def init_kornia_transforms(transform_list, mode=None):
             return augmentations_from_config(transform_list)
 
 def build_gpu_aug_pipeline(gpu_aug_cfg):
+    if not gpu_aug_cfg:
+        return None
     pipelines = []
     for lib, builder in TRANSFORM_BUILDERS.items():
         lib_cfg = gpu_aug_cfg.get(lib)
