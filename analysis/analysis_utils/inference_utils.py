@@ -9,8 +9,8 @@ from pydantic import validate_arguments
 from torch.utils.data import DataLoader
 # ionpy imports
 from ionpy.util import Config
-from ionpy.augmentation import init_kornia_transforms
 from ionpy.experiment.util import absolute_import, eval_config
+from ionpy.augmentation.gpu_transform_wrappers import build_gpu_aug_pipeline
 # local imports
 from .helpers import save_inference_metadata
 from ...experiment.util import load_experiment, get_exp_load_info
@@ -181,35 +181,16 @@ def dataobjs_from_exp(
 
     # If we have a gpu augmentation pipeline, we need to build it.
     if gpu_aug_cfg is not None:
-        if "voxynth" in gpu_aug_cfg:
-            from ionpy.augmentation import build_voxynth_aug_pipeline
-            voxynth_aug_cfg = gpu_aug_cfg["voxynth"]
-            # Apply any data preprocessing or augmentation
-            gpu_aug_pipeline_dict = {
-                "train": build_voxynth_aug_pipeline(
-                    voxynth_aug_cfg.get('train_transforms'),
-                ),
-                "val": build_voxynth_aug_pipeline(
-                    voxynth_aug_cfg.get('val_transforms'),
-                )
-            }
-        else:
-            from ionpy.augmentation import init_kornia_transforms
-            mode = gpu_aug_cfg.pop("mode", "both")
-            # Apply any data preprocessing or augmentation
-            gpu_aug_pipeline_dict = {
-                "train": init_kornia_transforms(
-                    gpu_aug_cfg.get('train_transforms'),
-                    mode=mode
-                ),
-                "val": init_kornia_transforms(
-                    gpu_aug_cfg.get('val_transforms'),
-                    mode=mode
-                )
-            }
-    else:
-        gpu_aug_pipeline_dict = {} 
-    
+        # Apply any data preprocessing or augmentation
+        gpu_aug_pipeline_dict = {
+            "train": build_gpu_aug_pipeline(
+                gpu_aug_cfg.get('train_transforms'),
+            ),
+            "val": build_gpu_aug_pipeline(
+                gpu_aug_cfg.get('val_transforms'),
+            )
+        }
+
     # We need to prune the dataset config to only include valid
     # parameters for the dataset class.
     dset_cfg = {}
