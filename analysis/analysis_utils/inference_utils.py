@@ -226,9 +226,10 @@ def dataobjs_from_exp(
                     **d_data_cfg
                 ), 
                 **modified_dataloader_cfg
-            ),
-            'aug_pipeline': gpu_aug_pipeline_dict.get(split, None)
+            )
         }
+        if gpu_aug_cfg is not None:
+            d_cfg_data_objs[opt_string]['aug_pipeline'] = gpu_aug_pipeline_dict.get(split, None)
 
     # Modify the inference data cfg to reflect the new data objects.
     modified_inf_data_cfg = inf_data_cfg.copy()
