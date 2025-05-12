@@ -142,12 +142,12 @@ def dataobjs_from_exp(
 
     # Often we will have trained with 'transforms', we need to pop them here.
     dset_transforms = {
-        "train_transforms": inf_data_cfg.pop("train_transforms", None),
-        "val_transforms": inf_data_cfg.pop("val_transforms", None)
+        "train": inf_data_cfg.pop("train_transforms", None),
+        "val": inf_data_cfg.pop("val_transforms", None)
     }
     dset_kwargs = {
-        "train_kwargs": inf_data_cfg.pop("train_kwargs", {}),
-        "val_kwargs": inf_data_cfg.pop("val_kwargs", {})
+        "train": inf_data_cfg.pop("train_kwargs", {}),
+        "val": inf_data_cfg.pop("val_kwargs", {})
     }
 
     # Initialize the dataloader configuration.
@@ -183,6 +183,7 @@ def dataobjs_from_exp(
             )
         }
 
+
     # We need to prune the dataset config to only include valid
     # parameters for the dataset class.
     dset_cfg = {}
@@ -198,15 +199,13 @@ def dataobjs_from_exp(
     # Get the split, used to determine the dataset and the transforms.
     split = dset_cfg['split']
     # First, we need to add the splitwise kwargs to the data cfg.
-    dset_cfg.update(dset_kwargs[f"{split}_kwargs"])
+    dset_cfg.update(dset_kwargs[split])
+    dset_cfg['transforms'] = dset_transforms[split]
 
     # Build the dataloader for this opt cfg and label.
     data_obj = {
         'dloader': DataLoader(
-            dset_cls(
-                transforms=dset_transforms[f"{split}_transforms"],
-                **dset_cfg,
-            ), 
+            dset_cls(**dset_cfg), 
             **modified_dataloader_cfg
         )
     }
@@ -214,12 +213,11 @@ def dataobjs_from_exp(
         data_obj['aug_pipeline'] = gpu_aug_pipeline_dict.get(split, None)
 
     # Modify the inference data cfg to reflect the new data objects.
-    modified_inf_data_cfg = inf_data_cfg.copy()
+    modified_inf_data_cfg = dset_cfg.copy()
 
     # Place a few last things in the modified data cfg.
     modified_inf_data_cfg.update({
         '_class': dataset_cls_str,
-        **dset_transforms
     })
 
     # Update the inference_data_cfg to reflect the data we are running on.
