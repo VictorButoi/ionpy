@@ -144,7 +144,6 @@ def load_experiment(
     df: Optional[Any] = None, 
     weights_only: bool = False,
     path: Optional[str] = None,
-    load_data: bool = False,
     exp_kwargs: Optional[dict] = {},
     attr_dict: Optional[dict] = None,
     selection_metric: Optional[str] = None,

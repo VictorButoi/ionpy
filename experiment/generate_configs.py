@@ -401,11 +401,10 @@ def get_inference_dset_info(
 
     # Get the data config from the model config.
     base_data_cfg = base_model_cfg["data"]
+
     # We need to remove a few keys that are not needed for inference.
     drop_keys = [
         "iters_per_epoch",
-        "train_kwargs",
-        "val_kwargs",
     ]
     for d_key in drop_keys:
         if d_key in base_data_cfg:

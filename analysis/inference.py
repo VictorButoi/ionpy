@@ -27,27 +27,15 @@ def run_inference(
     fix_seed(inference_cfg_dict['experiment'].get('inference_seed', 40))
     # Initialize all the objects needed for inference.
     inference_init_obj = inf_utils.init_inf_object(inference_cfg_dict)
-    inf_data_opts = inference_init_obj['dataobjs'].keys()
     # Loop through the data, gather your stats!
     tracker_objs = {
         "inf_cfg_dict": inference_cfg_dict, "inf_init_obj": inference_init_obj
     }
-    # A dataloader is something that iterates through a set of datapoints we want to
-    # run inference on. The invariant here is that we should expect to do inference
-    # on every data point in the dataloader.
-    for data_cfg_str in inf_data_opts:
-        # Make the data opt args for this particular data configuration.
-        if len(data_cfg_str) > 0:
-            data_props = dict(item.split(':') for item in data_cfg_str.split('^'))
-            data_props['data_cfg_str'] = data_cfg_str 
-        else:
-            data_props = {'data_cfg_str': data_cfg_str}
-        # Iterate through this configuration's dataloader.
-        standard_dataloader_loop(
-            inf_data_obj=inference_init_obj['dataobjs'][data_cfg_str],
-            data_props=data_props,
-            **tracker_objs
-        )
+    # Iterate through this configuration's dataloader.
+    standard_dataloader_loop(
+        inf_data_obj=inference_init_obj['dataobj'],
+        **tracker_objs
+    )
     # Save the records at the end too
     inf_helpers.save_trackers(inference_init_obj["output_root"], trackers=inference_init_obj["trackers"])
 

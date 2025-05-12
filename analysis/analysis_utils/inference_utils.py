@@ -85,7 +85,7 @@ def init_inf_object(inference_cfg):
         "data_counter": 0,
         "exp": inference_exp,
         "trackers": trackers,
-        "dataobjs": dataobj_dict,
+        "dataobj": dataobj_dict,
         "output_root": task_root,
         "visualizer": visualizer,
     }
@@ -140,22 +140,14 @@ def dataobjs_from_exp(
     # Ensure that we return the different data ids.
     inf_data_cfg['return_data_id'] = True
 
-    # Iterate through the keys and check if they are tuples.
-    opt_dict = {}
-    for key in list(inf_data_cfg.keys()):
-        if isinstance(inf_data_cfg[key], tuple):
-            tuple_val = inf_data_cfg.pop(key)
-            opt_dict[key] = list(tuple_val)
-
-    # Get the cartesian product of the options in the dictionary using itertools.
-    data_cfg_vals = opt_dict.values()
-    # Create a list of dictionaries from the Cartesian product
-    data_cfgs = [dict(zip(opt_dict.keys(), prod)) for prod in itertools.product(*data_cfg_vals)]
-
     # Often we will have trained with 'transforms', we need to pop them here.
     dset_transforms = {
         "train_transforms": inf_data_cfg.pop("train_transforms", None),
         "val_transforms": inf_data_cfg.pop("val_transforms", None)
+    }
+    dset_kwargs = {
+        "train_kwargs": inf_data_cfg.pop("train_kwargs", {}),
+        "val_kwargs": inf_data_cfg.pop("val_kwargs", {})
     }
 
     # Initialize the dataloader configuration.
@@ -203,33 +195,23 @@ def dataobjs_from_exp(
         if key in valid_params and key in inf_data_cfg:
             dset_cfg[key] = inf_data_cfg[key]
 
-    # Iterate through the configurations and construct both 
-    # 1) The dataloaders corresponding to each set of examples for inference.
-    # 2) The support sets for each run configuration.
-    d_cfg_data_objs = {}
-    # Iterate through the data configurations.
-    for d_cfg_opt in data_cfgs:
-        # Load the dataset with modified arguments.
-        d_data_cfg = dset_cfg.copy()
-        # Update the data cfg with the new options.
-        d_data_cfg.update(d_cfg_opt)
-        # We need to store these object by the contents of d_cfg_opt.
-        opt_string = "^".join([f"{key}:{val}" for key, val in d_cfg_opt.items()])
-        d_cfg_data_objs[opt_string] = {}
-        # Get the split, used to determine the dataset and the transforms.
-        split = d_data_cfg['split']
-        # Build the dataloader for this opt cfg and label.
-        d_cfg_data_objs[opt_string]= {
-            "dloader": DataLoader(
-                dset_cls(
-                    transforms=dset_transforms[f"{split}_transforms"],
-                    **d_data_cfg
-                ), 
-                **modified_dataloader_cfg
-            )
-        }
-        if gpu_aug_cfg is not None:
-            d_cfg_data_objs[opt_string]['aug_pipeline'] = gpu_aug_pipeline_dict.get(split, None)
+    # Get the split, used to determine the dataset and the transforms.
+    split = dset_cfg['split']
+    # First, we need to add the splitwise kwargs to the data cfg.
+    dset_cfg.update(dset_kwargs[f"{split}_kwargs"])
+
+    # Build the dataloader for this opt cfg and label.
+    data_obj = {
+        'dloader': DataLoader(
+            dset_cls(
+                transforms=dset_transforms[f"{split}_transforms"],
+                **dset_cfg,
+            ), 
+            **modified_dataloader_cfg
+        )
+    }
+    if gpu_aug_cfg is not None:
+        data_obj['aug_pipeline'] = gpu_aug_pipeline_dict.get(split, None)
 
     # Modify the inference data cfg to reflect the new data objects.
     modified_inf_data_cfg = inf_data_cfg.copy()
@@ -248,7 +230,7 @@ def dataobjs_from_exp(
     })
 
     # Return the dataobjs.
-    return d_cfg_data_objs
+    return data_obj
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
