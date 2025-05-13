@@ -139,6 +139,7 @@ def dataobjs_from_exp(
 
     # Ensure that we return the different data ids.
     inf_data_cfg['return_data_id'] = True
+    print(inf_data_cfg)
 
     # Often we will have trained with 'transforms', we need to pop them here.
     dset_transforms = {

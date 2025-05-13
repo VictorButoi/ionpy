@@ -136,12 +136,23 @@ def get_inference_configs(
             # Finally stick this back in as a string tuple version.
             flat_exp_cfg_dict[key] = get_range_from_str(val)
 
-    # Gather the different config options.
-    cfg_opt_keys = list(flat_exp_cfg_dict.keys())
     #First going through and making sure each option is a list and then using itertools.product.
     for ico_key in flat_exp_cfg_dict:
         if not isinstance(flat_exp_cfg_dict[ico_key], list):
             flat_exp_cfg_dict[ico_key] = [flat_exp_cfg_dict[ico_key]]
+    
+    # There are a set of keys which correspond to actual lists that need to be
+    # preserved.
+    list_keys = [
+        "inference_data.train_transforms",
+        "inference_data.val_transforms",
+    ]
+    list_key_dict = {}
+    for list_key in list_keys:
+        if list_key in flat_exp_cfg_dict:
+            list_key_dict[list_key] = flat_exp_cfg_dict.pop(list_key)
+    # Gather the different config options.
+    cfg_opt_keys = list(flat_exp_cfg_dict.keys())
     
     # Generate product tuples 
     product_tuples = list(itertools.product(*[flat_exp_cfg_dict[key] for key in cfg_opt_keys]))
@@ -171,9 +182,12 @@ def get_inference_configs(
     # Iterate over the different config options for this dataset. 
     for option_dict in dataset_cfgs:
         for exp_cfg_update in dict_product(option_dict):
+            # Add the list keys back in to the experiment update.
+            if list_key_dict != {}:
+                exp_cfg_update.update(list_key_dict)
             # Add the inference dataset specific details.
             dataset_inf_cfg_dict = get_inference_dset_info(
-                cfg=exp_cfg_update,
+                exp_cfg_update=exp_cfg_update,
                 config_root=config_root
             )
             # Update the base config with the new options. Note the order is important here, such that 
@@ -393,11 +407,11 @@ def get_range_from_str(val):
 
 
 def get_inference_dset_info(
-    cfg,
+    exp_cfg_update,
     config_root 
 ):
     # Total model config
-    base_model_cfg = yaml.safe_load(open(f"{cfg['experiment.model_dir']}/config.yml", "r"))
+    base_model_cfg = yaml.safe_load(open(f"{exp_cfg_update['experiment.model_dir']}/config.yml", "r"))
 
     # Get the data config from the model config.
     base_data_cfg = base_model_cfg["data"]
@@ -411,7 +425,8 @@ def get_inference_dset_info(
             base_data_cfg.pop(d_key)
 
     # Get the dataset name, and load the base inference dataset config for that.
-    inf_dset_name = cfg.get('inference_data._class', "").split('.')[-1]
+    inf_dset_name = exp_cfg_update.get('inference_data._class', "").split('.')[-1]
+
     # Add the dataset specific details.
     inf_dset_cfg_file = config_root / "inference" / f"{inf_dset_name}.yaml"
     if inf_dset_cfg_file.exists():
@@ -430,6 +445,7 @@ def get_inference_dset_info(
     # Now we update the trained model config with the inference dataset config.
     new_inf_dset_cfg = base_data_cfg.copy()
     new_inf_dset_cfg.update(inf_dset_presets)
+
     # And we put the updated data_cfg back into the inf_cfg_dict.
     inf_cfg_presets["inference_data"] = new_inf_dset_cfg
 
