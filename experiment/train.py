@@ -51,6 +51,9 @@ class TrainExperiment(BaseExperiment):
         train_transforms = data_cfg.pop("train_transforms", None) 
         val_transforms = data_cfg.pop("val_transforms", None)
         if load_data:
+            print("Dataset_cls:", dataset_cls)
+            print("Data cfg:", data_cfg)
+            print("train_data_kwargs:", train_data_kwargs)
             self.train_dataset = dataset_cls(
                 split="train", 
                 transforms=train_transforms, 
@@ -65,9 +68,8 @@ class TrainExperiment(BaseExperiment):
             )
 
     def build_dataloader(self):
-        assert self.config["dataloader.batch_size"] <= len(
-            self.train_dataset
-        ), "Batch size larger than dataset"
+        if self.config["dataloader.batch_size"] > len(self.train_dataset):
+            print("Warning: Batch size larger than dataset")
         dl_cfg = self.config["dataloader"]
         self.train_dl = DataLoader(
             self.train_dataset, shuffle=True, drop_last=False, **dl_cfg

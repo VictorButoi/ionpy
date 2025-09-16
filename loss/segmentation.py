@@ -22,7 +22,7 @@ def soft_dice_loss(
     reduction: Reduction = "mean",
     batch_reduction: Reduction = "mean",
     weights: Optional[Union[Tensor, list]] = None,
-    ignore_index: Optional[int] = None,
+    ignore_index: Optional[int] = None, # Don't love how this is an actual int, but Pytorch needs this.
     ignore_empty_labels: bool = False,
     from_logits: bool = False,
     smooth: float = 1e-7,
@@ -141,7 +141,6 @@ def pixel_crossentropy_loss(
 
     if mode == "binary":
         assert y_pred.shape == y_true.shape
-        assert ignore_index is None
         assert weights is None
         if from_logits:
             loss = F.binary_cross_entropy_with_logits(

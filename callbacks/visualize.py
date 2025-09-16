@@ -81,7 +81,7 @@ def ClassificationShowPreds(
 
     # Get the predicted label
     if y_hat.shape[1] == 1:
-        y_hat = (torch.sigmoid(y_hat) > threshold).astype(int)
+        y_hat = (torch.sigmoid(y_hat) > threshold)
     else:
         y_hat = torch.argmax(y_hat, axis=1)
     
@@ -92,20 +92,10 @@ def ClassificationShowPreds(
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
         img_cmap = None
-        if denormalize is not None:
-            x = denormalize(x)
-            x = x * 255
-            x = x.int()
         x = x.permute(0, 2, 3, 1) # Move channel dimension to last.
     else:
         img_cmap = "gray"
     
-    # If the image is float, clip between [0, 1]
-    if x.dtype == torch.float32:
-        x = torch.clamp(x, 0, 1)
-    elif x.dtype == torch.int:
-        x = torch.clamp(x, 0, 255)
-
     # Prepare the tensors for visualization as npdarrays.
     x = x.detach().cpu().numpy()
     y = y.detach().cpu().numpy()
@@ -122,7 +112,7 @@ def ClassificationShowPreds(
         row_idx = b_idx // ncols
         if bs == 1:
             axarr.set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
-            im1 = axarr.imshow(x[b_idx], cmap=img_cmap, interpolation='None')
+            im1 = axarr.imshow(x[b_idx].squeeze(), cmap=img_cmap, interpolation='None')
             f.colorbar(im1, ax=axarr, orientation='vertical')
         elif nrows == 1:
             axarr[col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
