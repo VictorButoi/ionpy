@@ -51,9 +51,6 @@ class TrainExperiment(BaseExperiment):
         train_transforms = data_cfg.pop("train_transforms", None) 
         val_transforms = data_cfg.pop("val_transforms", None)
         if load_data:
-            print("Dataset_cls:", dataset_cls)
-            print("Data cfg:", data_cfg)
-            print("train_data_kwargs:", train_data_kwargs)
             self.train_dataset = dataset_cls(
                 split="train", 
                 transforms=train_transforms, 

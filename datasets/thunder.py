@@ -14,7 +14,6 @@ class ThunderDataset(Dataset):
         self, path: pathlib.Path, preload: bool = False, reuse_fp: bool = True
     ):
         self._path = path
-        self.preload = preload
         if preload:
             self._db = ThunderLoader(path)
         elif reuse_fp:
