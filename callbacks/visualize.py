@@ -13,8 +13,9 @@ class ShowPredictions:
     
     def __init__(
         self, 
-        exp = None, 
+        exp: Optional[Any] = None, 
         vis_type: Literal["classification", "segmentation"] = "classification",
+        vis_kwargs: Optional[dict] = None,
         col_wrap: int = 4,
         threshold: float = 0.5,
         size_per_image: int = 5,
@@ -22,6 +23,7 @@ class ShowPredictions:
     ):
         self.col_wrap = col_wrap
         self.vis_type = vis_type
+        self.vis_kwargs = vis_kwargs
         self.threshold = threshold
         self.size_per_image = size_per_image
         # Sometimes we normalize the intensity values so we need to denormalize them for visualization.
@@ -35,109 +37,119 @@ class ShowPredictions:
             self.denormalize = None
 
 
-    def __call__(self, batch):
+    def __call__(self, batch: dict):
 
         # Prints some metric stuff
         if "loss" in batch and len(batch["loss"].shape) == 0:
             print("Loss: ", batch["loss"].item())
 
         if self.vis_type == "classification": 
-            ClassificationShowPreds(
-                batch, 
+            self.show_class_preds(
+                    batch=batch, 
                 col_wrap=self.col_wrap, 
                 threshold=self.threshold, 
                 size_per_image=self.size_per_image,
-                denormalize=self.denormalize
+                img_cmap=self.vis_kwargs.get("img_cmap", None),
+                denormalize_fn=self.denormalize
             )
         elif self.vis_type == "segmentation":
-            SegmentationShowPreds(
-                batch, 
+            self.show_seg_preds(
+                batch=batch, 
                 threshold=self.threshold, 
                 size_per_image=self.size_per_image,
-                denormalize=self.denormalize
+                img_cmap=self.vis_kwargs.get("img_cmap", None),
+                denormalize_fn=self.denormalize
             )
         elif self.vis_type == "reconstruction":
-            ReconstructionShowPreds(
-                batch, 
+            self.show_recon_preds(
+                batch=batch, 
                 col_wrap=self.col_wrap, 
                 size_per_image=self.size_per_image,
-                denormalize=self.denormalize
+                img_cmap=self.vis_kwargs.get("img_cmap", None),
+                denormalize_fn=self.denormalize
             )
         else:
             raise ValueError("Invalid vis_type. Must be 'classification' or 'segmentation'.")
 
 
-def ClassificationShowPreds(
-    batch, 
-    col_wrap: int,
-    threshold: float,
-    size_per_image: int,
-    denormalize: Any
-):
-    # Transfer image and label to the cpu.
-    x = batch["x"]
-    y = batch["y_true"]
-    y_hat = batch["y_pred"]
+    def show_class_preds(
+        self,
+        batch: dict, 
+        col_wrap: int = 4,
+        threshold: float = 0.5,
+        size_per_image: int = 5,
+        img_cmap: Optional[str] = None,
+        denormalize_fn: Optional[Any] = None,
+    ):
+        # Transfer image and label to the cpu.
+        x = batch["x"]
+        y = batch["y_true"]
+        y_hat = batch["y_pred"]
 
-    # Get the predicted label
-    if y_hat.shape[1] == 1:
-        y_hat = (torch.sigmoid(y_hat) > threshold)
-    else:
-        y_hat = torch.argmax(y_hat, axis=1)
-    
-    # Print the batch acurracy.
-    acc = (y == y_hat).sum().item() / y.shape[0]
-    print("Batch Accuracy: ", acc)
-
-    # If x is rgb (has 3 input channels)
-    if x.shape[1] == 3:
-        img_cmap = None
-        x = x.permute(0, 2, 3, 1) # Move channel dimension to last.
-    else:
-        img_cmap = "gray"
-    
-    # Prepare the tensors for visualization as npdarrays.
-    x = x.detach().cpu().numpy()
-    y = y.detach().cpu().numpy()
-    y_hat = y_hat.detach().cpu().numpy()
-    
-    # Prepare matplotlib objects.
-    bs = y.shape[0]
-    ncols = min(bs, col_wrap)
-    nrows = int(np.ceil(bs / ncols))
-    f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, nrows * size_per_image))
-    # Go through each item in the batch.
-    for b_idx in range(bs):
-        col_idx = b_idx % ncols
-        row_idx = b_idx // ncols
-        if bs == 1:
-            axarr.set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
-            im1 = axarr.imshow(x[b_idx].squeeze(), cmap=img_cmap, interpolation='None')
-            f.colorbar(im1, ax=axarr, orientation='vertical')
-        elif nrows == 1:
-            axarr[col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
-            im1 = axarr[col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
-            f.colorbar(im1, ax=axarr[col_idx], orientation='vertical')
+        # Get the predicted label
+        if y_hat.shape[1] == 1:
+            y_hat = (torch.sigmoid(y_hat) > threshold)
         else:
-            axarr[row_idx, col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
-            im1 = axarr[row_idx, col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
-            f.colorbar(im1, ax=axarr[row_idx, col_idx], orientation='vertical')
-    # Turn off all of the grids and axes in the subplot array
-    if not isinstance(axarr, np.ndarray):
-        all_ax = [axarr]
-    else:
-        all_ax = axarr.flatten()
-    for ax in all_ax:
-        ax.grid(False)
+            y_hat = torch.argmax(y_hat, axis=1)
+        
+        # Print the batch acurracy.
+        acc = (y == y_hat).sum().item() / y.shape[0]
+        print("Batch Accuracy: ", acc)
 
-    plt.show()
+        # If x is rgb (has 3 input channels)
+        if x.shape[1] == 3:
+            x = x.permute(0, 2, 3, 1) # Move channel dimension to last.
+            x = x.int()
+        img_cmap = img_cmap
+        if denormalize_fn is not None:
+            x = denormalize_fn(x)
+            x = x * 255
+            x = torch.clamp(x, 0, 255)
+            x = x.int()
+        
+        # Prepare the tensors for visualization as npdarrays.
+        x = x.detach().cpu().numpy()
+        y = y.detach().cpu().numpy()
+        y_hat = y_hat.detach().cpu().numpy()
+        
+        # Prepare matplotlib objects.
+        bs = y.shape[0]
+        ncols = min(bs, col_wrap)
+        nrows = int(np.ceil(bs / ncols))
+        f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, nrows * size_per_image))
+        # Go through each item in the batch.
+        for b_idx in range(bs):
+            col_idx = b_idx % ncols
+            row_idx = b_idx // ncols
+            if bs == 1:
+                axarr.set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
+                im1 = axarr.imshow(x[b_idx].squeeze(), cmap=img_cmap, interpolation='None')
+                f.colorbar(im1, ax=axarr, orientation='vertical')
+            elif nrows == 1:
+                axarr[col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
+                im1 = axarr[col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
+                f.colorbar(im1, ax=axarr[col_idx], orientation='vertical')
+            else:
+                axarr[row_idx, col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
+                im1 = axarr[row_idx, col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
+                f.colorbar(im1, ax=axarr[row_idx, col_idx], orientation='vertical')
+        # Turn off all of the grids and axes in the subplot array
+        if not isinstance(axarr, np.ndarray):
+            all_ax = [axarr]
+        else:
+            all_ax = axarr.flatten()
+        for ax in all_ax:
+            ax.grid(False)
+
+        plt.show()
 
 
 def SegmentationShowPreds(
-    batch, 
-    threshold: float,
-    size_per_image: int,
-    denormalize: Any
+    batch: dict, 
+    threshold: float = 0.5,
+    size_per_image: int = 5,
+    img_cmap: Optional[str] = None,
+    denormalize_fn: Optional[Any] = None,
 ):
     # If our pred has a different batchsize than our inputs, we
     # need to tile the input and label to match the batchsize of
@@ -202,10 +214,12 @@ def SegmentationShowPreds(
     
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
-        img_cmap = None
-        if denormalize is not None:
-            x = denormalize(x)
-            x = (x * 255).int()
+        img_cmap = img_cmap
+        if denormalize_fn is not None:
+            x = denormalize_fn(x)
+            x = x * 255
+            x = torch.clamp(x, 0, 255)
+            x = x.int()
         # Move the 1st dmension to the end, where we don't know the total
         # number of dims (e.g. 2D, 3D, etc).
         x = x.permute(0, *range(2, len(x.shape)), 1) # Move channel dimension to last.
@@ -270,10 +284,11 @@ def SegmentationShowPreds(
 
 
 def ReconstructionShowPreds(
-    batch, 
-    col_wrap: int,
-    size_per_image: int,
-    denormalize: Any
+    batch: dict, 
+    col_wrap: int = 4,
+    size_per_image: int = 5,
+    img_cmap: Optional[str] = None,
+    denormalize_fn: Optional[Any] = None,
 ):
     # Get the predicted label
     if isinstance(batch["y_pred"], dict):
@@ -289,10 +304,18 @@ def ReconstructionShowPreds(
 
     # If x is rgb (has 3 input channels)
     if x.shape[1] == 3:
-        img_cmap = None
+        img_cmap = img_cmap
         # First we process the image for visualization.
-        x = proc_rgb_image(x, denormalize_fn=denormalize)
-        y_hat = proc_rgb_image(y_hat, denormalize_fn=denormalize)
+        x = proc_rgb_image(x, denormalize_fn=denormalize_fn)
+        y_hat = proc_rgb_image(y_hat, denormalize_fn=denormalize_fn)
+        x = x * 255
+        x = x.int()
+        # Clip y_hat to be between 0 and 255.
+        x = torch.clamp(x, 0, 255)
+        y_hat = y_hat * 255
+        y_hat = y_hat.int()
+        # Clip y_hat to be between 0 and 255.
+        y_hat = torch.clamp(y_hat, 0, 255)
     else:
         img_cmap = "gray"
 
@@ -348,15 +371,14 @@ def ReconstructionShowPreds(
     plt.show()
 
 
-def proc_rgb_image(x, denormalize_fn):
+def proc_rgb_image(x: torch.Tensor, denormalize_fn: Optional[Any] = None):
     # If using a denorm fn, then we will want to
     # use an integer image.
     if denormalize_fn is not None:
         x = denormalize_fn(x)
         x = x * 255
-        x = x.int()
-        # Clip y_hat to be between 0 and 255.
         x = torch.clamp(x, 0, 255)
+        x = x.int()
     else:
         x = torch.clamp(x, 0, 1)
     
