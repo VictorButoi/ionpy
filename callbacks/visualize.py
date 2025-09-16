@@ -71,7 +71,6 @@ class ShowPredictions:
         else:
             raise ValueError("Invalid vis_type. Must be 'classification' or 'segmentation'.")
 
-
     def show_class_preds(
         self,
         batch: dict, 
@@ -92,19 +91,16 @@ class ShowPredictions:
         else:
             y_hat = torch.argmax(y_hat, axis=1)
         
-        # Print the batch acurracy.
-        acc = (y == y_hat).sum().item() / y.shape[0]
-        print("Batch Accuracy: ", acc)
-
+        # Denormalize the image if needed.
+        if denormalize_fn is not None:
+            x = denormalize_fn(x)
         # If x is rgb (has 3 input channels)
         if x.shape[1] == 3:
             x = x.permute(0, 2, 3, 1) # Move channel dimension to last.
-            x = x.int()
-        img_cmap = img_cmap
-        if denormalize_fn is not None:
-            x = denormalize_fn(x)
-            x = x * 255
-            x = torch.clamp(x, 0, 255)
+        # If the range is [0, 1], then we want to be float otherwise we want to be int.
+        if x.max() <= 1:
+            x = x.float()
+        else:
             x = x.int()
         
         # Prepare the tensors for visualization as npdarrays.
@@ -117,6 +113,8 @@ class ShowPredictions:
         ncols = min(bs, col_wrap)
         nrows = int(np.ceil(bs / ncols))
         f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, nrows * size_per_image))
+        # Print the batch acurracy.
+        print("Batch Accuracy: ", (y == y_hat).sum().item() / y.shape[0])
         # Go through each item in the batch.
         for b_idx in range(bs):
             col_idx = b_idx % ncols
