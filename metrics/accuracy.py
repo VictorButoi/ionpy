@@ -92,14 +92,30 @@ def _accuracy(output, target, topk=(1,)):
 def accuracy(
     y_pred, 
     y_true,
+    from_logits: bool = True,
     return_weights: bool = False,
     positive_class_weight: float = 1.0,
     batch_reduction: Reduction = "mean"
 ):
-    maxk = max((1,))
-    _, pred = y_pred.topk(maxk, 1, True, True)
-    pred = pred.t()
-    correct = pred.eq(y_true.view(1, -1).expand_as(pred)).float().squeeze(0)
+    # Apply softmax if from_logits is True
+    if from_logits:
+        if y_pred.shape[1] == 1:
+            y_pred = torch.sigmoid(y_pred)
+        else:
+            y_pred = torch.softmax(y_pred, dim=1)
+    
+    # Handle different input shapes
+    if y_pred.shape[1] == 1:
+        # Binary classification with [B, 1] output
+        # Convert to binary predictions (>= 0.5)
+        pred = (y_pred >= 0.5).float()
+        correct = pred.eq(y_true.float()).float()
+    else:
+        # Multi-class classification with [B, C] output
+        maxk = max((1,))
+        _, pred = y_pred.topk(maxk, 1, True, True)
+        pred = pred.t()
+        correct = pred.eq(y_true.view(1, -1).expand_as(pred)).float().squeeze(0)
 
     if batch_reduction == "mean":
         return correct.mean()

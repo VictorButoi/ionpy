@@ -85,7 +85,6 @@ class ResultsLoader:
 
         rows = []
         for folder, cfg in tqdm(zip(folders, configs), leave=False, total=len(folders)):
-            
             # If we want to verify that the job exited gracefully then we check the submitit folder
             # (if it exists) and see if the job exited gracefully
             if verify_graceful_exit:
