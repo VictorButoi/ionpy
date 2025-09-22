@@ -159,4 +159,6 @@ def calculate_batch_stats(
                     "metric_score": met_score.item(),
                     **metadata_dict,
                 }
+                for dump_key in inference_cfg["log"].get("dump_keys", []):
+                    record[dump_key] = forward_batch[dump_key][met_idx].item()
                 trackers['image_stats'].append(record)
