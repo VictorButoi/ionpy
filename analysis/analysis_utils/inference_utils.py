@@ -21,7 +21,7 @@ def init_inf_object(inference_cfg):
     # BUILD THE MODEL #
     ###################
     inference_exp = load_inference_exp(
-        config=inference_cfg['experiment'],
+        inference_cfg=inference_cfg,
         checkpoint=inference_cfg['model']['checkpoint'],
         to_device=True
     )
@@ -48,8 +48,6 @@ def init_inf_object(inference_cfg):
     #################
     # MISC SETTINGS #
     #################
-    # Build a visualizer if we want to visualize the results.
-    visualizer = eval_config(inference_cfg.get('visualize'))
     # Trackers store statistics over time. Either per prediction (each row is a different prediction)
     # or accumulated statistics (stat meter for the entire dataset for each metric).
     trackers = {
@@ -87,33 +85,40 @@ def init_inf_object(inference_cfg):
         "trackers": trackers,
         "dataobj": dataobj_dict,
         "output_root": task_root,
-        "visualizer": visualizer,
     }
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def load_inference_exp(
-    config: dict,
+    inference_cfg: dict,
     to_device: bool = False,
     inf_kwargs: Optional[dict] = {},
     checkpoint: Optional[str] = None,
 ): 
+    cfg = inference_cfg['experiment']
     # If we are passing to the device, we need to set the 'device' of
     # our init to 'gpu'.
     if to_device:
         inf_kwargs['device'] = 'cuda'
     # Load the experiment directly if you give a sub-path.
     inference_exp = load_experiment(
-        exp_class=config['_class'],
+        exp_class=cfg['_class'],
         checkpoint=checkpoint,
         exp_kwargs={
             "set_seed": False,
             "load_data": False,
-            "load_aug_pipeline": False
+            "load_aug_pipeline": False # Unclear if this is correct
         },
         **inf_kwargs,
-        **get_exp_load_info(config['model_dir']),
+        **get_exp_load_info(cfg['model_dir']),
     )
+    # Update the callbacks with the inference cfg.
+    exp_cfg = inference_exp.config.to_dict()
+    exp_cfg['callbacks'].update(inference_cfg['callbacks'])
+    # Make a new config object.
+    inference_exp.config = Config(exp_cfg)
+    # Then we build the callbacks.
+    inference_exp.build_callbacks()
     # Set the model to evaluation mode.
     inference_exp.model.train(False)
     # Optionally, move the model to the device.
@@ -128,106 +133,23 @@ def dataobjs_from_exp(
     inference_exp,
     inference_cfg
 ):
-    inf_data_cfg = inference_cfg['inference_data']
-    # Make sure we aren't sampling for evaluation. 
-    if "slicing" in inf_data_cfg.keys():
-        assert inf_data_cfg['slicing'] not in ['central', 'dense', 'uniform'], "Sampling methods not allowed for evaluation."
-
-    # Get the dataset class
-    dataset_cls_str = inf_data_cfg.pop('_class')
-    dset_cls = absolute_import(dataset_cls_str)
-
-    # Ensure that we return the different data ids.
-    inf_data_cfg['return_data_id'] = True
-    print(inf_data_cfg)
-
-    # Often we will have trained with 'transforms', we need to pop them here.
-    dset_transforms = {
-        "train": inf_data_cfg.pop("train_transforms", None),
-        "val": inf_data_cfg.pop("val_transforms", None)
-    }
-    dset_kwargs = {
-        "train": inf_data_cfg.pop("train_kwargs", {}),
-        "val": inf_data_cfg.pop("val_kwargs", {})
-    }
-
-    # Initialize the dataloader configuration.
-    modified_dataloader_cfg = inference_exp.config['dataloader'].to_dict()
-    if 'dataloader' in inference_cfg:
-        new_dloader_cfg = inference_cfg['dataloader']
-        modified_dataloader_cfg.update(new_dloader_cfg)
-
-    ###########################################################
-    # Build the augmentation pipeline if we want augs on GPU. #
-    ###########################################################
-    # Assemble the augmentation pipeline.
-    gpu_aug_cfg = inference_exp.config.get('gpu_augmentations', None)
-    if 'gpu_augmentations' in inference_cfg:
-        inf_gpu_aug_cfg_opts = inference_cfg['gpu_augmentations']
-        if gpu_aug_cfg is not None:
-            gpu_aug_cfg.update(inf_gpu_aug_cfg_opts)
-        else:
-            gpu_aug_cfg = inf_gpu_aug_cfg_opts
-    # Convert the Config object to a dictionary.
-    if gpu_aug_cfg is not None and not isinstance(gpu_aug_cfg, dict):
-        gpu_aug_cfg = gpu_aug_cfg.to_dict()
-
-    # If we have a gpu augmentation pipeline, we need to build it.
-    if gpu_aug_cfg is not None:
-        # Apply any data preprocessing or augmentation
-        gpu_aug_pipeline_dict = {
-            "train": build_gpu_aug_pipeline(
-                gpu_aug_cfg.get('train_transforms'),
-            ),
-            "val": build_gpu_aug_pipeline(
-                gpu_aug_cfg.get('val_transforms'),
-            )
-        }
-
-
-    # We need to prune the dataset config to only include valid
-    # parameters for the dataset class.
-    dset_cfg = {}
-    # Get the signature of the __init__ method.
-    sig = inspect.signature(dset_cls.__init__)
-    # Get the accepted parameter names (excluding 'self').
-    valid_params = set(sig.parameters.keys()) - {'self'}
-    # Iterate over a static list of keys since we are modifying the dictionary.
-    for key in list(valid_params):
-        if key in valid_params and key in inf_data_cfg:
-            dset_cfg[key] = inf_data_cfg[key]
-
-    # Get the split, used to determine the dataset and the transforms.
-    split = dset_cfg['split']
-    # First, we need to add the splitwise kwargs to the data cfg.
-    dset_cfg.update(dset_kwargs[split])
-    dset_cfg['transforms'] = dset_transforms[split]
-
-    # Build the dataloader for this opt cfg and label.
+    data_cfg = inference_exp.config['data'].to_dict()
+    split = inference_cfg['inference_data'].pop('split')
+    data_cfg.update(inference_cfg['inference_data'])
+    # First we build the dataset.
+    inference_exp.build_data(load_data=True, cfg_dict=data_cfg)
+    inference_cfg['inference_data']['split'] = split
+    # Then we build the dataloader.
+    dloader_cfg = inference_exp.config['dataloader'].to_dict()
+    dloader_cfg.update(inference_cfg['dataloader'])
+    split_dloader = inference_exp.build_dataloader(
+        cfg_dict=dloader_cfg,
+        return_obj=True
+    )[split]
     data_obj = {
-        'dloader': DataLoader(
-            dset_cls(**dset_cfg), 
-            **modified_dataloader_cfg
-        )
+        'dloader': split_dloader,
+        'aug_pipeline': inference_exp.aug_pipeline
     }
-    if gpu_aug_cfg is not None:
-        data_obj['aug_pipeline'] = gpu_aug_pipeline_dict.get(split, None)
-
-    # Modify the inference data cfg to reflect the new data objects.
-    modified_inf_data_cfg = dset_cfg.copy()
-
-    # Place a few last things in the modified data cfg.
-    modified_inf_data_cfg.update({
-        '_class': dataset_cls_str,
-    })
-
-    # Update the inference_data_cfg to reflect the data we are running on.
-    inference_cfg.update({
-        'inference_data': modified_inf_data_cfg,
-        'inference_dataloaders': modified_dataloader_cfg,
-        'inference_gpu_augmentations': gpu_aug_cfg
-    })
-
     # Return the dataobjs.
     return data_obj
 

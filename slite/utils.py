@@ -58,7 +58,7 @@ def dump_yaml(data, path):
 
 
 def pop_wandb_callback(cfg):
-    for epoch_callback in cfg["callbacks"]["epoch"]:
+    for epoch_callback in cfg["callbacks"].get("epoch", []):
         if isinstance(epoch_callback, str) and epoch_callback.split(".")[-1] == "WandbLogger":
             cfg["callbacks"]["epoch"].remove(epoch_callback)
         elif isinstance(epoch_callback, dict) and list(epoch_callback.keys())[0].split(".")[-1] == "WandbLogger":

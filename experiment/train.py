@@ -299,36 +299,15 @@ class TrainExperiment(BaseExperiment):
 
         with torch.set_grad_enabled(grad_enabled):
             for batch_idx in range(len(dl)):
-                # # We want to time each part of our pipeline to see where the bottleneck is.
-                # torch.cuda.synchronize()
-                # t1 = time.time()
                 batch = next(iter_loader) # Doing this lets us time the data loading.
-                # torch.cuda.synchronize()
-                # t2 = time.time()
-                # print("Data loading time:", t2 - t1)
-
-                # torch.cuda.synchronize()
-                # t1 = time.time()
                 outputs = self.run_step(
-                    batch_idx=batch_idx,
                     batch=batch,
                     backward=grad_enabled,
                     augmentation=augmentation,
                     epoch=epoch,
                     phase=phase,
                 )
-                # torch.cuda.synchronize()
-                # t2 = time.time()
-                # print("Forward pass + backwards pass time:", t2 - t1)
-                
-                # torch.cuda.synchronize()
-                # t1 = time.time()
                 batch_metrics, batch_metric_weights = self.compute_metrics(outputs)
-                # torch.cuda.synchronize()
-                # t2 = time.time()
-                # print("Compute Metrics time:", t2 - t1)
-                # print()
-
                 phase_meters.update(batch_metrics, weights=batch_metric_weights)
 
                 self.run_callbacks(
@@ -345,7 +324,6 @@ class TrainExperiment(BaseExperiment):
 
     def run_step(
         self, 
-        batch_idx, 
         batch, 
         epoch=None, 
         phase=None,
