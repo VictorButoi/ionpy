@@ -141,6 +141,7 @@ def load_experiment(
     exp_class: Any,
     checkpoint: str,
     device: str = "cpu",
+    strict: bool = True,
     df: Optional[Any] = None, 
     weights_only: bool = False,
     path: Optional[str] = None,
@@ -185,7 +186,7 @@ def load_experiment(
             weights_path = exp_path / "checkpoints" / "last.pt"
         with weights_path.open("rb") as f:
             state = torch.load(f, weights_only=weights_only)
-        exp_obj.model.load_state_dict(state["model"])
+        exp_obj.model.load_state_dict(state["model"], strict=strict)
         print(f"Loaded model from: {weights_path}")
     
     # Set the device

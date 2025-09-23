@@ -22,7 +22,6 @@ def init_inf_object(inference_cfg):
     ###################
     inference_exp = load_inference_exp(
         inference_cfg=inference_cfg,
-        checkpoint=inference_cfg['model']['checkpoint'],
         to_device=True
     )
 
@@ -93,24 +92,21 @@ def load_inference_exp(
     inference_cfg: dict,
     to_device: bool = False,
     inf_kwargs: Optional[dict] = {},
-    checkpoint: Optional[str] = None,
 ): 
-    cfg = inference_cfg['experiment']
     # If we are passing to the device, we need to set the 'device' of
     # our init to 'gpu'.
     if to_device:
         inf_kwargs['device'] = 'cuda'
     # Load the experiment directly if you give a sub-path.
     inference_exp = load_experiment(
-        exp_class=cfg['_class'],
-        checkpoint=checkpoint,
         exp_kwargs={
             "set_seed": False,
             "load_data": False,
             "load_aug_pipeline": False # Unclear if this is correct
         },
+        **inference_cfg['experiment']['exp_kwargs'],
         **inf_kwargs,
-        **get_exp_load_info(cfg['model_dir']),
+        **get_exp_load_info(inference_cfg['experiment']['model_dir']),
     )
     # Update the callbacks with the inference cfg.
     exp_cfg = inference_exp.config.to_dict()
