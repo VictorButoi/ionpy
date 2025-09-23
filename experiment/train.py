@@ -116,7 +116,8 @@ class TrainExperiment(BaseExperiment):
                 self.model, optim_cfg["weight_decay"]
             )
         else:
-            optim_cfg["params"] = self.model.parameters()
+            # Only include parameters that require gradients (not frozen)
+            optim_cfg["params"] = [p for p in self.model.parameters() if p.requires_grad]
         self.optim = eval_config(optim_cfg)
 
         # If our scheduler is not none, then we need to set it up here.
