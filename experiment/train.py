@@ -81,6 +81,7 @@ class TrainExperiment(BaseExperiment):
         print("Number of parameters:", self.properties["num_params"])
         # Used from MultiverSeg Code.
         if torch.__version__ >= "2.0.0" and compile_model:
+            print("Compiling model with torch.compile")
             self.model = torch.compile(self.model)
             self.compiled = True
         else:
@@ -151,15 +152,16 @@ class TrainExperiment(BaseExperiment):
 
     def build_metrics(self, init_metrics):
         self.metric_fns = {}
+        self.global_metric_fns = {}
         if init_metrics:
             if "log.metrics" in self.config:
-                log_metric_cfg = self.config["log.metrics"].to_dict()
-                # Get out the label types if they exist.
-                self.metric_label_types = {}
-                for metric_name, metric_dict in log_metric_cfg.items():
-                    self.metric_label_types[metric_name] = metric_dict.pop("label_type", None)
-                # Initialize the metric functions.
-                self.metric_fns = eval_config(log_metric_cfg)
+                self.metric_fns = eval_config(
+                    self.config["log.metrics"].to_dict()
+                )
+            if "log.global_metrics" in self.config:
+                self.global_metric_fns = eval_config(
+                    self.config["log.global_metrics"].to_dict()
+                )
 
     def build_initialization(self):
         if "initialization" in self.config:
@@ -298,6 +300,13 @@ class TrainExperiment(BaseExperiment):
         phase_meters = MeterDict()
         iter_loader = iter(dl)
 
+        # Sometimes we want to compute aggregate metrics that work over the entire
+        # phase. This requires us to track the predicted y_true and y_pred.
+        output_dict = {
+            "y_true": torch.tensor([]),
+            "y_pred": torch.tensor([]),
+       }
+
         with torch.set_grad_enabled(grad_enabled):
             for batch_idx in range(len(dl)):
                 batch = next(iter_loader) # Doing this lets us time the data loading.
@@ -310,7 +319,15 @@ class TrainExperiment(BaseExperiment):
                 )
                 batch_metrics, batch_metric_weights = self.compute_metrics(outputs)
                 phase_meters.update(batch_metrics, weights=batch_metric_weights)
-
+                # Keep track of what our y_tru and y_pred are for the entire phase.
+                output_dict["y_true"] = torch.cat(
+                    [output_dict["y_true"], outputs["y_true"].cpu().detach()],
+                    dim=0
+                )
+                output_dict["y_pred"] = torch.cat(
+                    [output_dict["y_pred"], outputs["y_pred"].cpu().detach()],
+                    dim=0
+                )
                 self.run_callbacks(
                     "batch", 
                     epoch=epoch, 
@@ -318,10 +335,14 @@ class TrainExperiment(BaseExperiment):
                     phase=phase
                 )
         phase_metrics = {"phase": phase, "epoch": epoch, **phase_meters.collect("mean")}
+        global_metrics = self.compute_global_metrics(output_dict)
+        metric_dict = {**phase_metrics, **global_metrics}
+        print(metric_dict)
+        raise ValueError("Stop here")
 
-        self.metrics.log(phase_metrics)
+        self.metrics.log(metric_dict)
 
-        return phase_metrics
+        return metric_dict
 
     def run_step(
         self, 
@@ -390,6 +411,14 @@ class TrainExperiment(BaseExperiment):
                 metrics[name] = value_obj
                 metric_weights[name] = None
         return metrics, metric_weights
+    
+    def compute_global_metrics(self, output_dict):
+        metrics = {}
+        for name, fn in self.global_metric_fns.items():
+            y_pred = output_dict["y_pred"]
+            y_true = output_dict["y_true"]
+            metrics[name] = fn(y_pred, y_true).item()
+        return metrics
 
     def build_augmentations(self, load_aug_pipeline):
         pass

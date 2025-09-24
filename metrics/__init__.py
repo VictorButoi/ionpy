@@ -1,6 +1,6 @@
 from torch.nn.functional import cross_entropy
 
-from .accuracy import accuracy, correct
+from .accuracy import accuracy, f1_score, correct
 from .size import model_size
 
 from .segmentation import (

@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from torch import Tensor
 # local imports
 from .util import (
     Reduction,
@@ -133,3 +134,36 @@ def accuracy(
             return correct, weights_per_sample
         else:
             return correct
+
+
+def f1_score(
+    y_pred: Tensor,
+    y_true: Tensor,
+    from_logits: bool = True,
+):
+    # Apply softmax if from_logits is True
+    if from_logits:
+        if y_pred.shape[1] == 1:
+            y_pred = torch.sigmoid(y_pred)
+        else:
+            y_pred = torch.softmax(y_pred, dim=1)
+
+    # Flatten to 1D if needed
+    if y_pred.dim() > 1:
+        y_pred = y_pred.view(-1)
+    if y_true.dim() > 1:
+        y_true = y_true.view(-1)
+
+    # Binarize (robust to float inputs)
+    pred = (y_pred >= 0.5).to(torch.long)
+    target = (y_true >= 0.5).to(torch.long)
+
+    tp = ((pred == 1) & (target == 1)).sum().to(torch.float32)
+    fp = ((pred == 1) & (target == 0)).sum().to(torch.float32)
+    fn = ((pred == 0) & (target == 1)).sum().to(torch.float32)
+
+    eps = torch.finfo(torch.float32).eps
+    precision = tp / (tp + fp + eps)
+    recall = tp / (tp + fn + eps)
+    f1 = (2.0 * precision * recall) / (precision + recall + eps)
+    return f1
