@@ -338,8 +338,6 @@ class TrainExperiment(BaseExperiment):
         global_metrics = self.compute_global_metrics(output_dict)
         metric_dict = {**phase_metrics, **global_metrics}
         print(metric_dict)
-        raise ValueError("Stop here")
-
         self.metrics.log(metric_dict)
 
         return metric_dict

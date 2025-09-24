@@ -143,27 +143,25 @@ def f1_score(
 ):
     # Apply softmax if from_logits is True
     if from_logits:
-        if y_pred.shape[1] == 1:
-            y_pred = torch.sigmoid(y_pred)
-        else:
-            y_pred = torch.softmax(y_pred, dim=1)
+        y_pred = torch.sigmoid(y_pred)
+    y_hard = (y_pred >= 0.5).to(torch.long)
 
     # Flatten to 1D if needed
-    if y_pred.dim() > 1:
-        y_pred = y_pred.view(-1)
+    if y_hard.dim() > 1:
+        y_hard = y_hard.view(-1)
     if y_true.dim() > 1:
         y_true = y_true.view(-1)
+    
+    print('y_hard', y_hard)
+    print('y_true', y_true)
 
-    # Binarize (robust to float inputs)
-    pred = (y_pred >= 0.5).to(torch.long)
-    target = (y_true >= 0.5).to(torch.long)
-
-    tp = ((pred == 1) & (target == 1)).sum().to(torch.float32)
-    fp = ((pred == 1) & (target == 0)).sum().to(torch.float32)
-    fn = ((pred == 0) & (target == 1)).sum().to(torch.float32)
+    tp = ((y_hard == 1) & (y_true == 1)).sum().to(torch.float32)
+    fp = ((y_hard == 1) & (y_true == 0)).sum().to(torch.float32)
+    fn = ((y_hard == 0) & (y_true == 1)).sum().to(torch.float32)
 
     eps = torch.finfo(torch.float32).eps
     precision = tp / (tp + fp + eps)
     recall = tp / (tp + fn + eps)
     f1 = (2.0 * precision * recall) / (precision + recall + eps)
+
     return f1
