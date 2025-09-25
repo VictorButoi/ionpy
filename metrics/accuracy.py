@@ -152,9 +152,6 @@ def f1_score(
     if y_true.dim() > 1:
         y_true = y_true.view(-1)
     
-    print('y_hard', y_hard)
-    print('y_true', y_true)
-
     tp = ((y_hard == 1) & (y_true == 1)).sum().to(torch.float32)
     fp = ((y_hard == 1) & (y_true == 0)).sum().to(torch.float32)
     fn = ((y_hard == 0) & (y_true == 1)).sum().to(torch.float32)

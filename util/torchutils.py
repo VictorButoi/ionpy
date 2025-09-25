@@ -1,7 +1,7 @@
 import torch
 
 
-def to_device(inputs, device, channels_last=False):
+def to_device(inputs, device, channels_last=False, non_blocking=False):
 
     # See https://pytorch.org/tutorials/intermediate/memory_format_tutorial.html
     # for info on channels last memory layout
@@ -9,22 +9,22 @@ def to_device(inputs, device, channels_last=False):
 
     if isinstance(inputs, torch.Tensor):
         memory_format = torch.channels_last if channels_last and len(inputs.shape) == 4 else torch.contiguous_format
-        return inputs.to(device, memory_format=memory_format)
+        return inputs.to(device, memory_format=memory_format, non_blocking=non_blocking)
     if isinstance(inputs, torch.nn.Module):
         memory_format = torch.channels_last if channels_last else torch.contiguous_format
-        return inputs.to(device, memory_format=memory_format)
+        return inputs.to(device, memory_format=memory_format, non_blocking=non_blocking)
     if isinstance(inputs, list):
-        return [to_device(x, device, channels_last=channels_last) for x in inputs]
+        return [to_device(x, device, channels_last=channels_last, non_blocking=non_blocking) for x in inputs]
     if type(inputs) == tuple:
-        return tuple([to_device(x, device, channels_last=channels_last) for x in inputs])
+        return tuple([to_device(x, device, channels_last=channels_last, non_blocking=non_blocking) for x in inputs])
     if isinstance(inputs, tuple):
         tuple_cls = inputs.__class__  ## to preserve namedtuple
         return tuple_cls(
-            *[to_device(x, device, channels_last=channels_last) for x in inputs]
+            *[to_device(x, device, channels_last=channels_last, non_blocking=non_blocking) for x in inputs]
         )
     if isinstance(inputs, dict):
         return {
-            k: to_device(v, device, channels_last=channels_last)
+            k: to_device(v, device, channels_last=channels_last, non_blocking=non_blocking)
             for k, v in inputs.items()
         }
     # raise TypeError(f"Type {type(inputs)} not supported")
