@@ -14,7 +14,7 @@ from .base import BaseExperiment
 from ..util.ioutil import autosave
 from ..util.meter import MeterDict
 from ..util.torchutils import to_device
-from .util import absolute_import, eval_config
+from .util import absolute_import, eval_config, load_model_from_path, load_optim_from_path
 from ..nn.ema import EMAWrapper
 from ..nn.util import num_params, split_param_groups_by_weight_decay
 
@@ -76,9 +76,13 @@ class TrainExperiment(BaseExperiment):
         )
 
     def build_model(self, compile_model=False):
-        self.model = eval_config(self.config["model"])
+        model_cfg = self.config["model"].to_dict()
+        ema_kwargs = model_cfg.pop("ema", None)
+        pt_kwargs = model_cfg.pop("pt_kwargs", {})
+        # Build the model.
+        self.model = eval_config(model_cfg)
         self.properties["num_params"] = num_params(self.model)
-        print("Number of parameters:", self.properties["num_params"])
+        print("Main model #params:", self.properties["num_params"])
         # Used from MultiverSeg Code.
         if torch.__version__ >= "2.0.0" and compile_model:
             print("Compiling model with torch.compile")
@@ -86,29 +90,26 @@ class TrainExperiment(BaseExperiment):
             self.compiled = True
         else:
             self.compiled = False
-        
         # If the pretrained_dir exists, then load the model from the directory.
-        pretrained_dir = self.config["train"].get("pretrained_dir", None)
-        if pretrained_dir is not None:
-            path = pathlib.Path(pretrained_dir)
-            chkpt_name = self.config["train"].get("load_chkpt", "last")
-            weights_path = path / "checkpoints" / f"{chkpt_name}.pt"
-            with weights_path.open("rb") as f:
-                state = torch.load(f, map_location=self.device, weights_only=True)
-            self.model.load_state_dict(state["model"])
-            print(f"Loaded model from: {weights_path}")
+        if pt_kwargs is not None:
+            load_model_from_path(
+                self.model, 
+                device=self.device,
+                **pt_kwargs,
+            )
         # If the model has an EMA wrapper, then we need to wrap it.
-        if 'ema' in self.config:
+        if ema_kwargs is not None:
             self.model = EMAWrapper(
                 self.model,
-                **self.config['ema'].to_dict()
+                **ema_kwargs
             ) 
         # Move the model to the device
         self.to_device()
 
     def build_optim(self):
         optim_cfg = self.config["optim"].to_dict()
-
+        model_cfg = self.config["model"].to_dict()
+        pt_kwargs = model_cfg.pop("pt_kwargs", {})
         # First we need to get the optimizer schduler.
         lr_scheduler_cfg = optim_cfg.pop('lr_scheduler', None)
 
@@ -129,17 +130,13 @@ class TrainExperiment(BaseExperiment):
         else:
             self.lr_scheduler = None
 
-        # If the pretrained_dir exists, then load the optimizer state 
-        # dict.
-        pretrained_dir = self.config["train"].get("pretrained_dir", None)
-        if pretrained_dir is not None:
-            path = pathlib.Path(pretrained_dir)
-            chkpt_name = self.config["train"].get("load_chkpt", "last")
-            weights_path = path / "checkpoints" / f"{chkpt_name}.pt"
-            with weights_path.open("rb") as f:
-                state = torch.load(f, map_location=self.device, weights_only=True)
-            self.optim.load_state_dict(state["optim"])
-            print(f"Loaded optimizer from: {weights_path}")
+        # If the pretrained_dir exists, then load the optimizer state dict.
+        if pt_kwargs is not None:
+            load_optim_from_path(
+                self.optim, 
+                device=self.device,
+                **pt_kwargs,
+            )
         else:
             # Zero out the gradients as initialization 
             self.optim.zero_grad()

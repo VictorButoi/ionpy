@@ -195,3 +195,25 @@ def load_experiment(
         exp_obj.to_device()
     
     return exp_obj
+
+
+def load_model_from_path(model, device, path, checkpoint, **kwargs):
+    path = pathlib.Path(path)
+    weights_path = path / "checkpoints" / f"{checkpoint}.pt"
+    with weights_path.open("rb") as f:
+        state = torch.load(
+            f, 
+            map_location=device, 
+            weights_only=True,
+        )
+    model.load_state_dict(state["model"], strict=kwargs.get("strict", True))
+    print(f"Loaded model from: {weights_path}")
+
+
+def load_optim_from_path(optim, device, path, checkpoint):
+    path = pathlib.Path(path)
+    weights_path = path / "checkpoints" / f"{checkpoint}.pt"
+    with weights_path.open("rb") as f:
+        state = torch.load(f, map_location=device, weights_only=True)
+    optim.load_state_dict(state["optim"])
+    print(f"Loaded optimizer from: {weights_path}")
