@@ -77,7 +77,7 @@ class TrainExperiment(BaseExperiment):
 
     def build_model(self, compile_model=False):
         model_cfg = self.config["model"].to_dict()
-        ema_kwargs = model_cfg.pop("ema", None)
+        ema_kwargs = model_cfg.pop("ema", {})
         pt_kwargs = model_cfg.pop("pt_kwargs", {})
         # Build the model.
         self.model = eval_config(model_cfg)
@@ -91,14 +91,14 @@ class TrainExperiment(BaseExperiment):
         else:
             self.compiled = False
         # If the pretrained_dir exists, then load the model from the directory.
-        if pt_kwargs is not None:
+        if pt_kwargs != {}:
             load_model_from_path(
                 self.model, 
                 device=self.device,
                 **pt_kwargs,
             )
         # If the model has an EMA wrapper, then we need to wrap it.
-        if ema_kwargs is not None:
+        if ema_kwargs != {}:
             self.model = EMAWrapper(
                 self.model,
                 **ema_kwargs
@@ -131,7 +131,7 @@ class TrainExperiment(BaseExperiment):
             self.lr_scheduler = None
 
         # If the pretrained_dir exists, then load the optimizer state dict.
-        if pt_kwargs is not None:
+        if pt_kwargs != {}:
             load_optim_from_path(
                 self.optim, 
                 device=self.device,
