@@ -300,10 +300,13 @@ class TrainExperiment(BaseExperiment):
         # Sometimes we want to compute aggregate metrics that work over the entire
         # phase. This requires us to track the predicted y_true and y_pred.
         output_dict = {
-            "y_true": torch.tensor([]),
-            "y_pred": torch.tensor([]),
-       }
-
+            "y_true": [],
+            "y_pred": [],
+        }
+        # And we have a list of quantities that we want to track over epochs.
+        tracker_dict = {
+            t_name: [] for t_name in self.config["log.trackers"]
+        }
         with torch.set_grad_enabled(grad_enabled):
             for batch_idx in range(len(dl)):
                 batch = next(iter_loader) # Doing this lets us time the data loading.
@@ -317,14 +320,12 @@ class TrainExperiment(BaseExperiment):
                 batch_metrics, batch_metric_weights = self.compute_metrics(outputs)
                 phase_meters.update(batch_metrics, weights=batch_metric_weights)
                 # Keep track of what our y_tru and y_pred are for the entire phase.
-                output_dict["y_true"] = torch.cat(
-                    [output_dict["y_true"], outputs["y_true"].cpu().detach()],
-                    dim=0
-                )
-                output_dict["y_pred"] = torch.cat(
-                    [output_dict["y_pred"], outputs["y_pred"].cpu().detach()],
-                    dim=0
-                )
+                output_dict["y_true"].append(outputs["y_true"].cpu().detach())
+                output_dict["y_pred"].append(outputs["y_pred"].cpu().detach())
+                # Then add the trackers to the tracker dictionary.
+                for t_name in self.config["log.trackers"]:
+                    tracker_dict[t_name].append(outputs[t_name].cpu().detach())
+                # Run the batch-wise callbacks if you have them.
                 self.run_callbacks(
                     "batch", 
                     epoch=epoch, 
@@ -332,9 +333,15 @@ class TrainExperiment(BaseExperiment):
                     phase=phase
                 )
         phase_metrics = {"phase": phase, "epoch": epoch, **phase_meters.collect("mean")}
+        # Convert the keys in the output_dict to tensors.
+        for key in output_dict:
+            output_dict[key] = torch.cat(output_dict[key])
+        for t_name in self.config["log.trackers"]:
+            tracker_dict[t_name] = torch.cat(tracker_dict[t_name])
+        # Compute the global metrics.
         global_metrics = self.compute_global_metrics(output_dict)
-        metric_dict = {**phase_metrics, **global_metrics}
-        print(metric_dict)
+        avg_trackers = {t_name: torch.mean(tracker_dict[t_name]).item() for t_name in self.config["log.trackers"]}
+        metric_dict = {**phase_metrics, **global_metrics, **avg_trackers}
         self.metrics.log(metric_dict)
 
         return metric_dict
