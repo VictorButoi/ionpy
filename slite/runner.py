@@ -47,7 +47,6 @@ def run_job(
 def run_exp(
     gpu: str,
     config: Any,
-    experiment_class: Any,
     track_wandb: bool = False,
     show_examples: bool = False,
     run_name: Optional[str] = None,
@@ -68,13 +67,9 @@ def run_exp(
         if not track_wandb:
             pop_wandb_callback(cfg)
     # Either run the experiment or the job function.
-    run_args = {
-        "config": cfg,
-        "available_gpus": gpu,
-    }
     slunner.run_exp(
-        exp_class=experiment_class,
-        **run_args
+        config=cfg,
+        available_gpus=gpu,
     )
 
 
@@ -83,7 +78,6 @@ def submit_exps(
     cfg_list: List,
     exp_cfg: dict,
     submit_cfg: dict,
-    experiment_class: Any
 ):
     # Save the experiment configs so we can know what we ran.
     log_exp_config_objs(
@@ -107,7 +101,6 @@ def submit_exps(
         modified_cfgs.append(cfg)
     # Run the set of configs.
     slubmit.submit_jobs(
-        exp_class=experiment_class,
         submit_cfg=submit_cfg,
         config_list=modified_cfgs
     )

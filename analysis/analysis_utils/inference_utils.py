@@ -91,12 +91,7 @@ def init_inf_object(inference_cfg):
 def load_inference_exp(
     inference_cfg: dict,
     to_device: bool = False,
-    inf_kwargs: Optional[dict] = {},
 ): 
-    # If we are passing to the device, we need to set the 'device' of
-    # our init to 'gpu'.
-    if to_device:
-        inf_kwargs['device'] = 'cuda'
     # Load the experiment directly if you give a sub-path.
     inference_exp = load_experiment(
         exp_kwargs={
@@ -104,15 +99,11 @@ def load_inference_exp(
             "load_data": False,
             "load_aug_pipeline": False # Unclear if this is correct
         },
+        device='cuda',
+        config_update=inference_cfg,
         **inference_cfg['experiment']['exp_kwargs'],
-        **inf_kwargs,
         **get_exp_load_info(inference_cfg['experiment']['model_dir']),
     )
-    # Update the callbacks with the inference cfg.
-    exp_cfg = inference_exp.config.to_dict()
-    exp_cfg['callbacks'].update(inference_cfg['callbacks'])
-    # Make a new config object.
-    inference_exp.config = Config(exp_cfg)
     # Then we build the callbacks.
     inference_exp.build_callbacks()
     # Set the model to evaluation mode.
@@ -127,19 +118,12 @@ def load_inference_exp(
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def dataobjs_from_exp(
     inference_exp,
-    inference_cfg
 ):
     data_cfg = inference_exp.config['data'].to_dict()
-    split = inference_cfg['inference_data'].pop('split')
-    data_cfg.update(inference_cfg['inference_data'])
+    split = data_cfg.pop('split')
     # First we build the dataset.
     inference_exp.build_data(load_data=True, cfg_dict=data_cfg)
-    inference_cfg['inference_data']['split'] = split
-    # Then we build the dataloader.
-    dloader_cfg = inference_exp.config['dataloader'].to_dict()
-    dloader_cfg.update(inference_cfg['dataloader'])
     split_dloader = inference_exp.build_dataloader(
-        cfg_dict=dloader_cfg,
         return_obj=True
     )[split]
     data_obj = {

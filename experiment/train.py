@@ -1,9 +1,7 @@
 # Misc imports
-import time
-import copy
 import pathlib
+import numpy as np
 from typing import List
-from pprint import pprint
 # Torch imports
 import torch
 from torch import nn
@@ -340,7 +338,7 @@ class TrainExperiment(BaseExperiment):
             tracker_dict[t_name] = torch.cat(tracker_dict[t_name])
         # Compute the global metrics.
         global_metrics = self.compute_global_metrics(output_dict)
-        avg_trackers = {t_name: torch.mean(tracker_dict[t_name]).item() for t_name in self.config["log.trackers"]}
+        avg_trackers = {t_name: np.round(torch.mean(tracker_dict[t_name]).item(), 4) for t_name in self.config["log.trackers"]}
         metric_dict = {**phase_metrics, **global_metrics, **avg_trackers}
         self.metrics.log(metric_dict)
 

@@ -1,5 +1,6 @@
 # Misc imports
 import os
+import yaml
 import ast
 import time
 import json
@@ -147,6 +148,7 @@ def load_experiment(
     path: Optional[str] = None,
     exp_kwargs: Optional[dict] = {},
     attr_dict: Optional[dict] = None,
+    config_update: Optional[dict] = None,
     selection_metric: Optional[str] = None,
 ):
     if path is None:
@@ -170,12 +172,20 @@ def load_experiment(
     if isinstance(exp_class, str):
         exp_class = absolute_import(exp_class)
 
+    # Load the config dictionary into a dictionary.
+    with open(f"{exp_path}/config.yml", "r") as f:
+        exp_config_dict = yaml.safe_load(f)
+    # Update the config dictionary with the config update dictionary.
+    exp_config_dict.update(config_update)
+    # Make a config object from the dictionary.
+    exp_config = Config(exp_config_dict)
+
     # Actually load the class object.
-    exp_obj = exp_class(
-        exp_path, 
-        init_metrics=False, 
+    exp_obj = exp_class.from_config(
+        exp_config,
+        init_metrics=False,
         **exp_kwargs
-    )
+    ) 
 
     # Load the experiment
     if checkpoint is not None:
@@ -197,7 +207,7 @@ def load_experiment(
     return exp_obj
 
 
-def load_model_from_path(model, device, path, checkpoint, **kwargs):
+def load_model_from_path(model, device, path, checkpoint, strict=True, **kwargs):
     path = pathlib.Path(path)
     weights_path = path / "checkpoints" / f"{checkpoint}.pt"
     with weights_path.open("rb") as f:
@@ -206,7 +216,7 @@ def load_model_from_path(model, device, path, checkpoint, **kwargs):
             map_location=device, 
             weights_only=True,
         )
-    model.load_state_dict(state["model"], strict=kwargs.get("strict", True))
+    model.load_state_dict(state["model"], strict=strict)
     print(f"Loaded model from: {weights_path}")
 
 
