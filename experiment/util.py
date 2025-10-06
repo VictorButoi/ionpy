@@ -21,7 +21,7 @@ import torch
 from ..analysis import ResultsLoader
 from ..util.ioutil import autoload
 from ..util.hash import json_digest
-from ..util.config import HDict, Config
+from ..util.config import HDict, Config, deepupdate
 from ..util.more_functools import partial
 
 
@@ -175,8 +175,9 @@ def load_experiment(
     # Load the config dictionary into a dictionary.
     with open(f"{exp_path}/config.yml", "r") as f:
         exp_config_dict = yaml.safe_load(f)
-    # Update the config dictionary with the config update dictionary.
-    exp_config_dict.update(config_update)
+    # Update the config dictionary with the config update dictionary using hierarchical merge.
+    if config_update is not None:
+        deepupdate(exp_config_dict, config_update)
     # Make a config object from the dictionary.
     exp_config = Config(exp_config_dict)
 

@@ -39,10 +39,7 @@ def init_inf_object(inference_cfg):
     # BUILD THE DATASET #
     #####################
     # Build the dataloaders.
-    dataobj_dict = dataobjs_from_exp(
-        inference_exp=inference_exp,
-        inference_cfg=inference_cfg
-    )
+    dataobj_dict = dataobjs_from_exp(inference_exp=inference_exp)
 
     #################
     # MISC SETTINGS #
@@ -116,9 +113,7 @@ def load_inference_exp(
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
-def dataobjs_from_exp(
-    inference_exp,
-):
+def dataobjs_from_exp(inference_exp,):
     data_cfg = inference_exp.config['data'].to_dict()
     split = data_cfg.pop('split')
     # First we build the dataset.
