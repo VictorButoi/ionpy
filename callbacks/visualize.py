@@ -1,5 +1,6 @@
 # Torch imports
 import torch
+from torch import Tensor
 import torchvision.transforms as T
 # Misc imports
 import ast
@@ -40,8 +41,15 @@ class ShowPredictions:
     def __call__(self, batch: dict):
 
         # Prints some metric stuff
-        if "loss" in batch and len(batch["loss"].shape) == 0:
-            print("Loss: ", batch["loss"].item())
+        if "loss" in batch:
+            if isinstance(batch["loss"], Tensor):
+                if len(batch["loss"].shape) == 0:
+                    batch_loss = batch["loss"].item()
+                else:
+                    batch_loss = batch["loss"].mean().item()
+            else:
+                batch_loss = batch["loss"]
+            print("Loss: ", batch_loss)
 
         if self.vis_type == "classification": 
             self.show_class_preds(

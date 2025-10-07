@@ -5,6 +5,7 @@ from typing import List
 # Torch imports
 import torch
 from torch import nn
+from torch import Tensor
 from torch.cuda.amp import GradScaler
 from torch.utils.data import DataLoader
 # Local imports
@@ -318,11 +319,11 @@ class TrainExperiment(BaseExperiment):
                 batch_metrics, batch_metric_weights = self.compute_metrics(outputs)
                 phase_meters.update(batch_metrics, weights=batch_metric_weights)
                 # Keep track of what our y_tru and y_pred are for the entire phase.
-                output_dict["y_true"].append(outputs["y_true"].cpu().detach())
-                output_dict["y_pred"].append(outputs["y_pred"].cpu().detach())
+                output_dict["y_true"].append(outputs["y_true"])
+                output_dict["y_pred"].append(outputs["y_pred"])
                 # Then add the trackers to the tracker dictionary.
                 for t_name in self.config["log.trackers"]:
-                    tracker_dict[t_name].append(outputs[t_name].cpu().detach())
+                    tracker_dict[t_name].append(outputs[t_name])
                 # Run the batch-wise callbacks if you have them.
                 self.run_callbacks(
                     "batch", 
@@ -378,9 +379,11 @@ class TrainExperiment(BaseExperiment):
     def compute_metrics(self, outputs):
         batch_loss = outputs["loss"]
         # If the loss is not a scalar, then we need to reduce it to a scalar.
-        if len(batch_loss.shape) != 0:
-            batch_loss = batch_loss.mean()
-        metrics = {"loss": batch_loss.item()}
+        if isinstance(batch_loss, Tensor):
+            if len(batch_loss.shape) != 0:
+                batch_loss = batch_loss.mean()
+            batch_loss = batch_loss.item()
+        metrics = {"loss": batch_loss}
         metric_weights = {"loss": None}
         for name, fn in self.metric_fns.items():
             y_pred = outputs["y_pred"]
