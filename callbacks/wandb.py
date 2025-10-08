@@ -1,3 +1,6 @@
+# Misc imports
+from typing import List
+# Local imports
 import wandb
 
 
@@ -7,7 +10,8 @@ class WandbLogger:
         self, 
         exp, 
         entity,
-        project 
+        project,
+        watch_keys: List[str] = None,
     ):
         self.exp = exp
         exp_config = exp.config.to_dict() 
@@ -18,6 +22,11 @@ class WandbLogger:
             dir=exp_config["log"]["root"]
         )
         wandb.run.name = exp_config["log"]["wandb_string"]
+        if watch_keys:
+            for key in watch_keys:
+                property = getattr(exp, key)
+                wandb.watch(property, log_freq=1)
+                print(f"Watching {property} with wandb.")
 
     def __call__(self, epoch):
         df = self.exp.metrics.df
