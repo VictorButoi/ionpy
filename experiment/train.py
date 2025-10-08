@@ -317,7 +317,10 @@ class TrainExperiment(BaseExperiment):
                     phase=phase,
                 )
                 batch_metrics, batch_metric_weights = self.compute_metrics(outputs)
-                phase_meters.update(batch_metrics, weights=batch_metric_weights)
+                phase_meters.update(
+                    batch_metrics, 
+                    weights=batch_metric_weights
+                )
                 # Keep track of what our y_tru and y_pred are for the entire phase.
                 output_dict["y_true"].append(outputs["y_true"])
                 output_dict["y_pred"].append(outputs["y_pred"])
@@ -331,12 +334,16 @@ class TrainExperiment(BaseExperiment):
                     batch_idx=batch_idx, 
                     phase=phase
                 )
-        phase_metrics = {"phase": phase, "epoch": epoch, **phase_meters.collect("mean")}
+        phase_metrics = {
+            "phase": phase, "epoch": epoch, **phase_meters.collect("mean")
+        }
+
         # Convert the keys in the output_dict to tensors.
         for key in output_dict:
             output_dict[key] = torch.cat(output_dict[key])
         for t_name in self.config["log.trackers"]:
             tracker_dict[t_name] = torch.cat(tracker_dict[t_name])
+
         # Compute the global metrics.
         global_metrics = self.compute_global_metrics(output_dict)
         avg_trackers = {t_name: np.round(torch.mean(tracker_dict[t_name]).item(), 4) for t_name in self.config["log.trackers"]}
