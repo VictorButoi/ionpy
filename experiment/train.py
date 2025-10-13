@@ -303,9 +303,13 @@ class TrainExperiment(BaseExperiment):
             "y_pred": [],
         }
         # And we have a list of quantities that we want to track over epochs.
-        tracker_dict = {
-            t_name: [] for t_name in self.config["log.trackers"]
-        }
+        if self.config["log.trackers"] is not None:
+            tracker_dict = {
+                t_name: [] for t_name in self.config["log.trackers"]
+            }
+        else:
+            tracker_dict = {} 
+        # Run the phase.
         with torch.set_grad_enabled(grad_enabled):
             for batch_idx in range(len(dl)):
                 batch = next(iter_loader) # Doing this lets us time the data loading.
@@ -325,7 +329,7 @@ class TrainExperiment(BaseExperiment):
                 output_dict["y_true"].append(outputs["y_true"])
                 output_dict["y_pred"].append(outputs["y_pred"])
                 # Then add the trackers to the tracker dictionary.
-                for t_name in self.config["log.trackers"]:
+                for t_name in tracker_dict:
                     tracker_dict[t_name].append(outputs[t_name])
                 # Run the batch-wise callbacks if you have them.
                 self.run_callbacks(
@@ -341,12 +345,12 @@ class TrainExperiment(BaseExperiment):
         # Convert the keys in the output_dict to tensors.
         for key in output_dict:
             output_dict[key] = torch.cat(output_dict[key])
-        for t_name in self.config["log.trackers"]:
+        for t_name in tracker_dict:
             tracker_dict[t_name] = torch.cat(tracker_dict[t_name])
 
         # Compute the global metrics.
         global_metrics = self.compute_global_metrics(output_dict)
-        avg_trackers = {t_name: np.round(torch.mean(tracker_dict[t_name]).item(), 4) for t_name in self.config["log.trackers"]}
+        avg_trackers = {t_name: np.round(torch.mean(tracker_dict[t_name]).item(), 4) for t_name in tracker_dict}
         metric_dict = {**phase_metrics, **global_metrics, **avg_trackers}
         self.metrics.log(metric_dict)
 
