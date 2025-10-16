@@ -2,6 +2,8 @@
 import pathlib
 import numpy as np
 from typing import List
+import time
+from collections import defaultdict
 # Torch imports
 import torch
 from torch import nn
@@ -295,6 +297,10 @@ class TrainExperiment(BaseExperiment):
 
         phase_meters = MeterDict()
         iter_loader = iter(dl)
+        
+        # Initialize profiling timers
+        profile_times = defaultdict(float)
+        profile_counts = defaultdict(int)
 
         # Sometimes we want to compute aggregate metrics that work over the entire
         # phase. This requires us to track the predicted y_true and y_pred.
@@ -312,19 +318,42 @@ class TrainExperiment(BaseExperiment):
         # Run the phase.
         with torch.set_grad_enabled(grad_enabled):
             for batch_idx in range(len(dl)):
+                # Profile: Data loading
+                t0 = time.perf_counter()
                 batch = next(iter_loader) # Doing this lets us time the data loading.
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                profile_times['data_loading'] += time.perf_counter() - t0
+                profile_counts['data_loading'] += 1
+                
+                # Profile: Run step (forward, backward, optim)
+                t0 = time.perf_counter()
                 outputs = self.run_step(
                     batch=batch,
                     backward=grad_enabled,
                     augmentation=augmentation,
                     epoch=epoch,
                     phase=phase,
+                    profile_times=profile_times,
+                    profile_counts=profile_counts,
                 )
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                profile_times['total_step'] += time.perf_counter() - t0
+                profile_counts['total_step'] += 1
+                
+                # Profile: Metrics computation
+                t0 = time.perf_counter()
                 batch_metrics, batch_metric_weights = self.compute_metrics(outputs)
                 phase_meters.update(
                     batch_metrics, 
                     weights=batch_metric_weights
                 )
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                profile_times['metrics'] += time.perf_counter() - t0
+                profile_counts['metrics'] += 1
+                
                 # Keep track of what our y_tru and y_pred are for the entire phase.
                 output_dict["y_true"].append(outputs["y_true"])
                 output_dict["y_pred"].append(outputs["y_pred"])
@@ -353,6 +382,18 @@ class TrainExperiment(BaseExperiment):
         avg_trackers = {t_name: np.round(torch.mean(tracker_dict[t_name]).item(), 4) for t_name in tracker_dict}
         metric_dict = {**phase_metrics, **global_metrics, **avg_trackers}
         self.metrics.log(metric_dict)
+        
+        # Print profiling results
+        print(f"\n{'='*60}")
+        print(f"PROFILING RESULTS - {phase.upper()} Epoch {epoch}")
+        print(f"{'='*60}")
+        total_time = sum(profile_times.values())
+        for key in sorted(profile_times.keys()):
+            avg_time = profile_times[key] / max(profile_counts[key], 1) * 1000  # Convert to ms
+            total_key_time = profile_times[key]
+            percentage = (total_key_time / total_time * 100) if total_time > 0 else 0
+            print(f"{key:20s}: {total_key_time:7.3f}s total | {avg_time:7.3f}ms avg | {percentage:5.1f}%")
+        print(f"{'='*60}\n")
 
         return metric_dict
 
@@ -362,22 +403,60 @@ class TrainExperiment(BaseExperiment):
         epoch=None, 
         phase=None,
         backward=True, 
-        augmentation=True, 
+        augmentation=True,
+        profile_times=None,
+        profile_counts=None,
     ):
+        # Profile: Data transfer to device
+        t0 = time.perf_counter()
         batch = to_device(
             batch, self.device, self.config.get("train.channels_last", False)
         )
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        if profile_times is not None:
+            profile_times['data_to_device'] += time.perf_counter() - t0
+            profile_counts['data_to_device'] += 1
 
         x, y = batch["img"], batch["label"]
 
+        # Profile: Forward pass
+        t0 = time.perf_counter()
         y_hat = self.model(x)
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        if profile_times is not None:
+            profile_times['forward_pass'] += time.perf_counter() - t0
+            profile_counts['forward_pass'] += 1
 
+        # Profile: Loss computation
+        t0 = time.perf_counter()
         loss = self.loss_func(y_hat, y)
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        if profile_times is not None:
+            profile_times['loss_computation'] += time.perf_counter() - t0
+            profile_counts['loss_computation'] += 1
 
         if backward:
+            # Profile: Backward pass
+            t0 = time.perf_counter()
             loss.backward()
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            if profile_times is not None:
+                profile_times['backward_pass'] += time.perf_counter() - t0
+                profile_counts['backward_pass'] += 1
+            
+            # Profile: Optimizer step
+            t0 = time.perf_counter()
             self.optim.step()
             self.optim.zero_grad()
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            if profile_times is not None:
+                profile_times['optimizer_step'] += time.perf_counter() - t0
+                profile_counts['optimizer_step'] += 1
         
         forward_batch = {
             "loss": loss, "x": x, "y_true": y, "y_pred": y_hat
