@@ -89,7 +89,8 @@ def get_flat_cfg(
 def load_inference_dfs(
     results_cfg: dict,
     load_cached: bool,
-    inference_dir: str
+    inference_dir: str,
+    dump_df: bool = True
 ) -> pd.DataFrame:
     # Build a dictionary to store the inference info.
     log_cfg = results_cfg["log"] 
@@ -292,8 +293,9 @@ def load_inference_dfs(
             os.makedirs(os.path.dirname(precomputed_results_path))
         
         # Save the inference info to a pickle file.
-        with open(precomputed_results_path, 'wb') as f:
-            pickle.dump(inference_df, f)
+        if dump_df:
+            with open(precomputed_results_path, 'wb') as f:
+                pickle.dump(inference_df, f)
     else:
         # load the inference info from the pickle file.
         with open(precomputed_results_path, 'rb') as f:

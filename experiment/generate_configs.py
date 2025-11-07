@@ -103,10 +103,10 @@ def get_training_configs(
 def get_inference_configs(
     exp_cfg: dict,
     default_cfg: Config,
+    base_cfg_list: List[str],
     config_root: Path,
     scratch_root: Path,
     add_date: bool = True,
-    base_cfg_list: Optional[List[str]] = None,
 ):
     # We need to flatten the experiment config to get the different options.
     # Building new yamls under the exp_name name for model type.
@@ -192,19 +192,19 @@ def get_inference_configs(
             )
             # Update the base config with the new options. Note the order is important here, such that 
             # the exp_cfg_update is the last thing to update.
-            if base_cfg_list is not None:
-                cfg = Config(dataset_inf_cfg_dict).update([base_cfg_list, exp_cfg_update])
-            else:
-                cfg = Config(dataset_inf_cfg_dict).update([exp_cfg_update]) 
-            # Update the base config with the dataset specific config.
-            cfg = default_cfg.update([cfg])
-            # Make sure that we don't have any tuples.
-            cfg_dict = cfg.to_dict()
-            tuplized_cfg = Config(tuplize_str_dict(cfg_dict))
-            # Verify it's a valid config
-            check_missing(tuplized_cfg)
-            # Add it to the total list of inference options.
-            cfgs.append(tuplized_cfg)
+            for base_cfg_dir in base_cfg_list:
+                with open(f"{config_root}/{base_cfg_dir}", 'r') as base_file:
+                    base_cfg = yaml.safe_load(base_file)
+                cfg = Config(dataset_inf_cfg_dict).update([base_cfg, exp_cfg_update])
+                # Update the base config with the dataset specific config.
+                cfg = default_cfg.update([cfg])
+                # Make sure that we don't have any tuples.
+                cfg_dict = cfg.to_dict()
+                tuplized_cfg = Config(tuplize_str_dict(cfg_dict))
+                # Verify it's a valid config
+                check_missing(tuplized_cfg)
+                # Add it to the total list of inference options.
+                cfgs.append(tuplized_cfg)
     # Finally, generate the uuid that identify each of the configs.
     cfgs = generate_config_uuids(cfgs)
 

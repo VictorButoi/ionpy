@@ -19,9 +19,11 @@ class ShowPredictions:
         vis_kwargs: Optional[dict] = None,
         col_wrap: int = 4,
         threshold: float = 0.5,
-        size_per_image: int = 5,
-        denormalize: Optional[Any] = None
+        size_per_image: int = 20,
+        denormalize: Optional[Any] = None,
+        multi_task: bool = False,
     ):
+        self.multi_task = multi_task
         self.col_wrap = col_wrap
         self.vis_type = vis_type
         self.vis_kwargs = vis_kwargs
@@ -57,6 +59,7 @@ class ShowPredictions:
                 col_wrap=self.col_wrap, 
                 threshold=self.threshold, 
                 size_per_image=self.size_per_image,
+                multi_task=self.multi_task,
                 img_cmap=self.vis_kwargs.get("img_cmap", None),
                 denormalize_fn=self.denormalize
             )
@@ -84,7 +87,8 @@ class ShowPredictions:
         batch: dict, 
         col_wrap: int = 4,
         threshold: float = 0.5,
-        size_per_image: int = 5,
+        size_per_image: int = 20,
+        multi_task: bool = False,
         img_cmap: Optional[str] = None,
         denormalize_fn: Optional[Any] = None,
     ):
@@ -94,8 +98,8 @@ class ShowPredictions:
         y_hat = batch["y_pred"]
 
         # Get the predicted label
-        if y_hat.shape[1] == 1:
-            y_hat = (torch.sigmoid(y_hat) > threshold)
+        if y_hat.shape[1] == 1 or multi_task:
+            y_hat = (torch.sigmoid(y_hat) > threshold).int()
         else:
             y_hat = torch.argmax(y_hat, axis=1)
         
@@ -122,7 +126,7 @@ class ShowPredictions:
         nrows = int(np.ceil(bs / ncols))
         f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, nrows * size_per_image))
         # Print the batch acurracy.
-        print("Batch Accuracy: ", (y == y_hat).sum().item() / y.shape[0])
+        print("Batch Accuracy: ", (y == y_hat).mean(axis=1).mean().item())
         # Go through each item in the batch.
         for b_idx in range(bs):
             col_idx = b_idx % ncols
