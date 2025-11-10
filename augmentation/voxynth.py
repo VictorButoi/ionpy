@@ -1,6 +1,6 @@
 import torch
-# import voxynth
-# import voxynth.transform as voxform
+import voxynth
+import voxynth.transform as voxform
 
 
 def build_voxynth_aug_pipeline(augs_dict):
@@ -14,7 +14,8 @@ def build_voxynth_aug_pipeline(augs_dict):
         if visual_augs is not None:
             use_mask = visual_augs.pop('use_mask', False)
 
-    def aug_func(x_batch, y_batch=None):
+    def aug_func(batch):
+        x_batch, y_batch = batch['image'], batch.get('label', None)
         # The input shape is either
         # (B x C x H x W) or (B x C x D x H x W)
         # then we need to squeeze out the channel dimension.

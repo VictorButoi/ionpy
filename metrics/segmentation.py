@@ -175,7 +175,6 @@ def soft_dice_score(
     ignore_index: Optional[int] = None,
     from_logits: bool = False,
 ) -> Tensor:
-    
     y_pred, y_true = _inputs_as_onehot(
         y_pred, 
         y_true, 
@@ -203,6 +202,7 @@ def soft_dice_score(
             weights = existing_label
         else:
             weights = weights * existing_label
+    
     
     return _metric_reduction(
         soft_dice_score,

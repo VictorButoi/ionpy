@@ -19,7 +19,7 @@ class ShowPredictions:
         vis_kwargs: Optional[dict] = None,
         col_wrap: int = 4,
         threshold: float = 0.5,
-        size_per_image: int = 20,
+        size_per_image: int = 5,
         denormalize: Optional[Any] = None,
         multi_task: bool = False,
     ):

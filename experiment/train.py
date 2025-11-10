@@ -156,7 +156,7 @@ class TrainExperiment(BaseExperiment):
                 self.metric_fns = eval_config(
                     self.config["log.metrics"].to_dict()
                 )
-            if "log.global_metrics" in self.config:
+            if "log.global_metrics" in self.config and self.config["log.global_metrics"] is not None:
                 self.global_metric_fns = eval_config(
                     self.config["log.global_metrics"].to_dict()
                 )
@@ -371,14 +371,17 @@ class TrainExperiment(BaseExperiment):
             "phase": phase, "epoch": epoch, **phase_meters.collect("mean")
         }
 
-        # Convert the keys in the output_dict to tensors.
-        for key in output_dict:
-            output_dict[key] = torch.cat(output_dict[key])
         for t_name in tracker_dict:
             tracker_dict[t_name] = torch.cat(tracker_dict[t_name])
 
         # Compute the global metrics.
-        global_metrics = self.compute_global_metrics(output_dict)
+        if len(self.global_metric_fns) > 0:
+            # Convert the keys in the output_dict to tensors.
+            for key in output_dict:
+                output_dict[key] = torch.cat(output_dict[key])
+            global_metrics = self.compute_global_metrics(output_dict)
+        else:
+            global_metrics = {}
         avg_trackers = {t_name: np.round(torch.mean(tracker_dict[t_name]).item(), 4) for t_name in tracker_dict}
         metric_dict = {**phase_metrics, **global_metrics, **avg_trackers}
         self.metrics.log(metric_dict)
