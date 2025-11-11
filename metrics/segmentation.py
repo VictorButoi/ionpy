@@ -26,6 +26,7 @@ def dice_score(
     weights: Optional[Union[Tensor, List]] = None,
     ignore_empty_labels: bool = False,
     from_logits: bool = False,
+    label_index: Optional[int] = None,
     ignore_index: Optional[int] = None,
 ) -> Tensor:
 
@@ -50,6 +51,13 @@ def dice_score(
             weights = existing_label
         else:
             weights = weights * existing_label
+
+    # If a label index is provided, then we only consider the dice score from that label.
+    if label_index is not None:
+        assert ignore_empty_labels is False, "ignore_empty_labels is not supported when label_index is provided."
+        assert ignore_index is None, "ignore_index is not supported when label_index is provided."
+        dice_scores = dice_scores[:, label_index:label_index+1]
+        weights = None
         
     return _metric_reduction(
         dice_scores,

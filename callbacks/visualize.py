@@ -209,91 +209,148 @@ class ShowPredictions:
         if len(y.shape) == 4 and y.shape[1] != 1:
             y = torch.argmax(y, dim=1)
 
-        # If x is 5 dimensionsal, we need to take the midslice of the last dimension of all 
-        # of our tensors.
-        if len(x.shape) == 5:
-            # We want to look at the slice corresponding to the maximum amount of label.
-            # y shape here is (B, C, Spatial Dims)
-            y_squeezed = y.squeeze(1) # (B, Spatial Dims)
-            # Sum over the spatial dims that aren't the last one.
-            lab_per_slice = y_squeezed.sum(dim=tuple(range(1, len(y_squeezed.shape) - 1)))
-            # Get the max slices per batch item.
-            max_slices = torch.argmax(lab_per_slice, dim=1)
-            # Index into our 3D tensors with this.
-            x = torch.stack([x[i, ...,  max_slices[i]] for i in range(bs)]) 
-            y = torch.stack([y[i, ..., max_slices[i]] for i in range(bs)])
-            y_hat = torch.stack([y_hat[i, ..., max_slices[i]] for i in range(bs)])
-            y_hard = torch.stack([y_hard[i, ..., max_slices[i]] for i in range(bs)])
-        
-        # If x is rgb (has 3 input channels)
-        if x.shape[1] == 3:
-            img_cmap = img_cmap
-            if denormalize_fn is not None:
-                x = denormalize_fn(x)
-                x = x * 255
-                x = torch.clamp(x, 0, 255)
-                x = x.int()
-            # Move the 1st dmension to the end, where we don't know the total
-            # number of dims (e.g. 2D, 3D, etc).
-            x = x.permute(0, *range(2, len(x.shape)), 1) # Move channel dimension to last.
-        else:
-            img_cmap = "gray"
+        def _plot_segmentation_batch(
+            x_batch: torch.Tensor,
+            y_batch: torch.Tensor,
+            y_hat_batch: torch.Tensor,
+            y_hard_batch: torch.Tensor,
+            title_suffix: Optional[str] = None,
+        ):
+            bs_local = x_batch.shape[0]
 
-        # Squeeze all tensors in prep.
-        x = x.numpy().squeeze() # Move channel dimension to last.
-        y = y.numpy().squeeze()
-        y_hat = y_hat.numpy().squeeze()
-        y_hard = y_hard.numpy().squeeze()
-        # We plot four images per batch item.
-        f, axarr = plt.subplots(nrows=bs, ncols=4, figsize=(4 * size_per_image, bs*size_per_image))
-
-        # Go through each item in the batch.
-        for b_idx in range(bs):
-            if bs == 1:
-                axarr[0].set_title("Image")
-                im1 = axarr[0].imshow(x, cmap=img_cmap, interpolation='None')
-                f.colorbar(im1, ax=axarr[0], orientation='vertical')
-
-                axarr[1].set_title("Label")
-                im2 = axarr[1].imshow(y, cmap=label_cm, interpolation='None')
-                f.colorbar(im2, ax=axarr[1], orientation='vertical')
-
-                if len(y_hat.shape) == 3:
-                    max_probs = np.max(y_hat, axis=0)
-                else:
-                    assert len(y_hat.shape) == 2, "Soft prediction must be 2D if not 3D."
-                    max_probs = y_hat
-                axarr[2].set_title("Max Probs")
-                im4 = axarr[2].imshow(max_probs, cmap='gray', vmin=0.0, vmax=1.0, interpolation='None')
-                f.colorbar(im4, ax=axarr[2], orientation='vertical')
-
-                axarr[3].set_title("Hard Prediction")
-                im3 = axarr[3].imshow(y_hard, cmap=label_cm, interpolation='None')
-                f.colorbar(im3, ax=axarr[3], orientation='vertical')
+            if x_batch.dim() >= 4 and x_batch.shape[1] == 3:
+                local_img_cmap = img_cmap
+                x_vis = x_batch
+                if denormalize_fn is not None:
+                    x_vis = denormalize_fn(x_vis)
+                    x_vis = x_vis * 255
+                    x_vis = torch.clamp(x_vis, 0, 255)
+                    x_vis = x_vis.int()
+                x_vis = x_vis.permute(0, *range(2, len(x_vis.shape)), 1)
             else:
-                axarr[b_idx, 0].set_title("Image")
-                im1 = axarr[b_idx, 0].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
-                f.colorbar(im1, ax=axarr[b_idx, 0], orientation='vertical')
+                local_img_cmap = "gray"
+                x_vis = x_batch
 
-                axarr[b_idx, 1].set_title("Label")
-                im2 = axarr[b_idx, 1].imshow(y[b_idx], cmap=label_cm, interpolation='None')
-                f.colorbar(im2, ax=axarr[b_idx, 1], orientation='vertical')
+            x_np = x_vis.numpy().squeeze()
+            y_np = y_batch.numpy().squeeze()
+            y_hat_np = y_hat_batch.numpy().squeeze()
+            y_hard_np = y_hard_batch.numpy().squeeze()
 
-                axarr[b_idx, 2].set_title("Soft Prediction")
-                im3 = axarr[b_idx, 2].imshow(y_hat[b_idx], cmap=label_cm, interpolation='None')
-                f.colorbar(im3, ax=axarr[b_idx, 2], orientation='vertical')
+            f, axarr = plt.subplots(
+                nrows=bs_local,
+                ncols=4,
+                figsize=(4 * size_per_image, bs_local * size_per_image),
+            )
 
-                axarr[b_idx, 3].set_title("Hard Prediction")
-                im4 = axarr[b_idx, 3].imshow(y_hard[b_idx], cmap=label_cm, interpolation='None')
-                f.colorbar(im4, ax=axarr[b_idx, 3], orientation='vertical')
-        # Turn off all of the grids and axes in the subplot array
-        if not isinstance(axarr, np.ndarray):
-            all_ax = [axarr]
-        else:
-            all_ax = axarr.flatten()
-        for ax in all_ax:
-            ax.grid(False)
-        plt.show()
+            if title_suffix:
+                f.suptitle(title_suffix)
+
+            for b_idx in range(bs_local):
+                if bs_local == 1:
+                    axarr[0].set_title("Image")
+                    im1 = axarr[0].imshow(x_np, cmap=local_img_cmap, interpolation='None')
+                    f.colorbar(im1, ax=axarr[0], orientation='vertical')
+
+                    axarr[1].set_title("Label")
+                    im2 = axarr[1].imshow(y_np, cmap=label_cm, interpolation='None')
+                    f.colorbar(im2, ax=axarr[1], orientation='vertical')
+
+                    if len(y_hat_np.shape) == 3:
+                        max_probs = np.max(y_hat_np, axis=0)
+                    else:
+                        assert len(y_hat_np.shape) == 2, "Soft prediction must be 2D if not 3D."
+                        max_probs = y_hat_np
+
+                    axarr[2].set_title("Max Probs")
+                    im4 = axarr[2].imshow(
+                        max_probs,
+                        cmap='gray',
+                        vmin=0.0,
+                        vmax=1.0,
+                        interpolation='None',
+                    )
+                    f.colorbar(im4, ax=axarr[2], orientation='vertical')
+
+                    axarr[3].set_title("Hard Prediction")
+                    im3 = axarr[3].imshow(y_hard_np, cmap=label_cm, interpolation='None')
+                    f.colorbar(im3, ax=axarr[3], orientation='vertical')
+                else:
+                    axarr[b_idx, 0].set_title("Image")
+                    im1 = axarr[b_idx, 0].imshow(
+                        x_np[b_idx], cmap=local_img_cmap, interpolation='None'
+                    )
+                    f.colorbar(im1, ax=axarr[b_idx, 0], orientation='vertical')
+
+                    axarr[b_idx, 1].set_title("Label")
+                    im2 = axarr[b_idx, 1].imshow(
+                        y_np[b_idx], cmap=label_cm, interpolation='None'
+                    )
+                    f.colorbar(im2, ax=axarr[b_idx, 1], orientation='vertical')
+
+                    axarr[b_idx, 2].set_title("Soft Prediction")
+                    im3 = axarr[b_idx, 2].imshow(
+                        y_hat_np[b_idx], cmap=label_cm, interpolation='None'
+                    )
+                    f.colorbar(im3, ax=axarr[b_idx, 2], orientation='vertical')
+
+                    axarr[b_idx, 3].set_title("Hard Prediction")
+                    im4 = axarr[b_idx, 3].imshow(
+                        y_hard_np[b_idx], cmap=label_cm, interpolation='None'
+                    )
+                    f.colorbar(im4, ax=axarr[b_idx, 3], orientation='vertical')
+
+            if not isinstance(axarr, np.ndarray):
+                all_ax = [axarr]
+            else:
+                all_ax = axarr.flatten()
+            for ax in all_ax:
+                ax.grid(False)
+
+            plt.show()
+
+        def _gather_slices_along_axis(tensor: torch.Tensor, axis: int, indices: torch.Tensor):
+            selection = []
+            for b_idx in range(indices.shape[0]):
+                slicer = [slice(None)] * tensor.dim()
+                slicer[0] = b_idx
+                slicer[axis] = indices[b_idx].item()
+                selection.append(tensor[tuple(slicer)])
+            return torch.stack(selection, dim=0)
+
+        # If x is 5 dimensional, we want to visualize the max slice along each axis separately.
+        if len(x.shape) == 5:
+            if y.dim() == 5:
+                y_for_index = y.sum(dim=1)
+            else:
+                y_for_index = y
+
+            spatial_dims = list(range(1, y_for_index.dim()))
+            for axis_idx, spatial_dim in enumerate(spatial_dims):
+                reduce_dims = tuple(
+                    dim for dim in range(1, y_for_index.dim()) if dim != spatial_dim
+                )
+                lab_per_slice = y_for_index.sum(dim=reduce_dims)
+                max_slices = torch.argmax(lab_per_slice, dim=1)
+
+                x_axis = _gather_slices_along_axis(
+                    x, spatial_dim + (x.dim() - y_for_index.dim()), max_slices
+                )
+                y_axis = _gather_slices_along_axis(
+                    y, spatial_dim + (y.dim() - y_for_index.dim()), max_slices
+                )
+                y_hat_axis = _gather_slices_along_axis(
+                    y_hat, spatial_dim + (y_hat.dim() - y_for_index.dim()), max_slices
+                )
+                y_hard_axis = _gather_slices_along_axis(
+                    y_hard, spatial_dim + (y_hard.dim() - y_for_index.dim()), max_slices
+                )
+
+                _plot_segmentation_batch(
+                    x_axis, y_axis, y_hat_axis, y_hard_axis, title_suffix=f"Axis {axis_idx}"
+                )
+            return
+
+        _plot_segmentation_batch(x, y, y_hat, y_hard)
 
     def show_recon_preds(
         self,

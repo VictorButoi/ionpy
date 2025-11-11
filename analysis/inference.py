@@ -92,6 +92,18 @@ def calculate_batch_stats(
     inf_metric_cfg = inference_cfg["metrics"]
     assert len(inf_metric_cfg) != 0, "No metrics were specified in the config file."
 
+    # Calculate the amount of each label in the batch
+    dump_keys = inference_cfg["log"].get("dump_keys", [])
+    if "pred_label_amounts" in dump_keys:
+        log_y_pred = forward_batch["y_pred"]
+        y_probs = torch.softmax(log_y_pred, dim=1)
+        y_hard = torch.argmax(y_probs, dim=1)
+        # Per unique label (that isn't 0) get the amount of pixels that are that label.
+        for label_idx in range(1, y_probs.shape[1]):
+            lab_pred = (y_hard == label_idx).float()
+            label_amount = lab_pred.sum(dim=tuple(range(1, len(lab_pred.shape))))
+            forward_batch[f"pred_label_{label_idx}_amount"] = label_amount
+
     # Calculate all metrics for this batch
     total_metscore_dict = {}
     for metric_name, metric_dict in inf_metric_cfg.items():
@@ -159,6 +171,7 @@ def calculate_batch_stats(
                     "metric_score": met_score.item(),
                     **metadata_dict,
                 }
-                for dump_key in inference_cfg["log"].get("dump_keys", []):
-                    record[dump_key] = forward_batch[dump_key][met_idx].item()
+                for dump_key in dump_keys:
+                    if dump_key != "pred_label_amounts":
+                        record[dump_key] = forward_batch[dump_key][met_idx].item()
                 trackers['image_stats'].append(record)

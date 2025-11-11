@@ -54,14 +54,21 @@ def get_training_configs(
     # Load in the different base configs.
     base_config_list = []
     for base_cfg_file in base_cfg_list:
-        with open(f"{config_root}/{base_cfg_file}", 'r') as base_file:
+
+        base_group_file = f"{config_root}/{'/'.join(base_cfg_file.split('/')[:-1])}/base.yml"
+        with open(base_group_file, 'r') as base_group_file:
+            base_group_cfg_dict = yaml.safe_load(base_group_file)
+
+        base_cfg_file = f"{config_root}/{base_cfg_file}"
+        with open(base_cfg_file, 'r') as base_file:
             base_cfg_dict = yaml.safe_load(base_file)
-        base_config_list.append(default_cfg.update([base_cfg_dict]))
+
+        base_config_list.append(default_cfg.update([base_group_cfg_dict, base_cfg_dict]))
 
     # Add the dataset specific details.
     if 'data._class' in flat_exp_cfg_dict:
         train_dataset_name = flat_exp_cfg_dict['data._class'].split('.')[-1]
-        dataset_cfg_file = config_root / "training" / f"{train_dataset_name}.yaml"
+        dataset_cfg_file = config_root / "training" / f"{train_dataset_name}.yml"
         if dataset_cfg_file.exists():
             for cfg_idx, base_cfg in enumerate(base_config_list):
                 with open(dataset_cfg_file, 'r') as d_file:
