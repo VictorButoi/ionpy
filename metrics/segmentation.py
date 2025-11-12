@@ -190,7 +190,6 @@ def soft_dice_score(
         discretize=False,
         from_logits=from_logits
     )
-
     intersection = torch.sum(y_pred * y_true, dim=-1)
 
     if square_denom:

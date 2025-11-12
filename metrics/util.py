@@ -73,11 +73,7 @@ def _inputs_as_onehot(
             y_pred = hard_max(y_pred)
             y_true = hard_max(y_true)
 
-    if mode == "binary":
-        y_true = y_true.reshape(batch_size, 1, -1)
-        y_pred = y_pred.reshape(batch_size, 1, -1)
-
-    elif mode == "onehot":
+    if mode in ["binary", "onehot"]:
         y_true = y_true.reshape(batch_size, num_classes, -1)
         y_pred = y_pred.reshape(batch_size, num_classes, -1)
 
