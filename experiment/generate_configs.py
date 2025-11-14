@@ -245,7 +245,11 @@ def get_restart_configs(
             base_cfg = base_cfg.update([dataset_train_cfg])
         
     # This is a required key. We want to get all of the models and vary everything else.
-    pretrained_dir_list = restart_cfg_dict.pop('train.pretrained_dir') 
+    pretrained_dir_list = restart_cfg_dict.pop('pretrained.path') 
+    if isinstance(pretrained_dir_list, tuple):
+        pretrained_dir_list = list(pretrained_dir_list)
+    elif not isinstance(pretrained_dir_list, list):
+        pretrained_dir_list = [pretrained_dir_list]
     all_pre_models = gather_pretrained_models(pretrained_dir_list) 
 
     # Listify the dict for the product.
@@ -264,7 +268,7 @@ def get_restart_configs(
         pt_default_cfg = default_cfg.update([pt_exp_cfg])
         # Turn this into a dict.
         pt_default_cfg_dict = pt_default_cfg.to_dict()
-        pt_default_cfg_dict['train']['pretrained_dir'] = pt_dir
+        pt_default_cfg_dict['pretrained']['path'] = pt_dir
         pt_base_cfgs.append(Config(pt_default_cfg_dict))
 
     # Get the configs

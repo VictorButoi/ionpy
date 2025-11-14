@@ -77,9 +77,11 @@ class TrainExperiment(BaseExperiment):
         )
 
     def build_model(self, compile_model=False):
-        model_cfg = self.config["model"].to_dict()
+        total_config = self.config.to_dict()
+        model_cfg = total_config["model"]
+        pretrained_cfg = total_config.get("pretrained", {})
+
         ema_kwargs = model_cfg.pop("ema", {})
-        pt_kwargs = model_cfg.pop("pt_kwargs", {})
         # Build the model.
         self.model = eval_config(model_cfg)
         self.properties["num_params"] = num_params(self.model)
@@ -92,11 +94,11 @@ class TrainExperiment(BaseExperiment):
         else:
             self.compiled = False
         # If the pretrained_dir exists, then load the model from the directory.
-        if pt_kwargs != {}:
+        if pretrained_cfg != {}:
             load_model_from_path(
                 self.model, 
                 device=self.device,
-                **pt_kwargs,
+                **pretrained_cfg,
             )
         # If the model has an EMA wrapper, then we need to wrap it.
         if ema_kwargs != {}:
@@ -341,32 +343,36 @@ class TrainExperiment(BaseExperiment):
                     torch.cuda.synchronize()
                 profile_times['total_step'] += time.perf_counter() - t0
                 profile_counts['total_step'] += 1
-                
-                # Profile: Metrics computation
-                t0 = time.perf_counter()
-                batch_metrics, batch_metric_weights = self.compute_metrics(outputs)
-                phase_meters.update(
-                    batch_metrics, 
-                    weights=batch_metric_weights
-                )
-                if torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                profile_times['metrics'] += time.perf_counter() - t0
-                profile_counts['metrics'] += 1
-                
-                # Keep track of what our y_tru and y_pred are for the entire phase.
-                output_dict["y_true"].append(outputs["y_true"])
-                output_dict["y_pred"].append(outputs["y_pred"])
-                # Then add the trackers to the tracker dictionary.
-                for t_name in tracker_dict:
-                    tracker_dict[t_name].append(outputs[t_name])
-                # Run the batch-wise callbacks if you have them.
-                self.run_callbacks(
-                    "batch", 
-                    epoch=epoch, 
-                    batch_idx=batch_idx, 
-                    phase=phase
-                )
+
+                # If the outputs is empty, then we skip the metrics computation.
+                if len(outputs) > 0:
+                    # Profile: Metrics computation
+                    t0 = time.perf_counter()
+                    batch_metrics, batch_metric_weights = self.compute_metrics(outputs)
+                    phase_meters.update(
+                        batch_metrics, 
+                        weights=batch_metric_weights
+                    )
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    profile_times['metrics'] += time.perf_counter() - t0
+                    profile_counts['metrics'] += 1
+                    
+                    # Keep track of what our y_tru and y_pred are for the entire phase.
+                    output_dict["y_true"].append(outputs["y_true"])
+                    output_dict["y_pred"].append(outputs["y_pred"])
+                    # Then add the trackers to the tracker dictionary.
+                    for t_name in tracker_dict:
+                        tracker_dict[t_name].append(outputs[t_name])
+                    # Run the batch-wise callbacks if you have them.
+                    self.run_callbacks(
+                        "batch", 
+                        epoch=epoch, 
+                        batch_idx=batch_idx, 
+                        phase=phase
+                    )
+                else:
+                    print(f"Warning: No outputs for batch {batch_idx} in {phase} epoch {epoch}.")
         phase_metrics = {
             "phase": phase, "epoch": epoch, **phase_meters.collect("mean")
         }

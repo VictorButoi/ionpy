@@ -1,5 +1,6 @@
 # torch imports
 import torch
+from torch.cuda.amp import autocast
 # ionpy imports
 from ionpy.util.meter import MeterDict
 from ionpy.experiment.util import fix_seed
@@ -12,6 +13,7 @@ from tqdm import tqdm
 from pprint import pprint
 from typing import Any, Optional
 from pydantic import validate_arguments
+from contextlib import nullcontext
     
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -52,6 +54,10 @@ def standard_dataloader_loop(
     # Get the experiment and the kwarg sweep for inference once.
     exp = inf_init_obj["exp"]
     inf_kwarg_grid = inf_helpers.get_kwarg_sweep(inf_cfg_dict)
+    # Check if AMP is enabled in config
+    use_amp = inf_cfg_dict.get('experiment', {}).get('use_amp', True)
+    print(f"Using AMP Mode: {use_amp}")
+    amp_context = autocast() if use_amp else nullcontext()
     # Go through each batch in the dataloader. We use a batch_idx
     # and a iterator because we want to keep track of the batch index.
     iter_dloader = iter(dloader)
@@ -61,12 +67,13 @@ def standard_dataloader_loop(
             len(dloader), "({:.2f}%)".format(batch_idx / len(dloader) * 100), end="\r")
         # Iterate through each of the inference kwargs and run forward + stats.
         for predict_params in tqdm(inf_kwarg_grid, disable=(len(inf_kwarg_grid) == 1)):
-            forward_batch = exp.run_step(
-                batch, 
-                phase="val",
-                backward=False,
-                **predict_params,
-            )
+            with amp_context:
+                forward_batch = exp.run_step(
+                    batch, 
+                    phase="val",
+                    backward=False,
+                    **predict_params,
+                )
             calculate_batch_stats(
                 forward_batch=forward_batch,
                 metadata_dict={**predict_params, **data_props},

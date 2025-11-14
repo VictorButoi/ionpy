@@ -78,11 +78,13 @@ def submit_exps(
     cfg_list: List,
     exp_cfg: dict,
     submit_cfg: dict,
+    scratch_group: str,
 ):
     # Save the experiment configs so we can know what we ran.
     log_exp_config_objs(
         exp_cfg=exp_cfg, 
         submit_cfg=submit_cfg,
+        scratch_group=scratch_group
     )
     # Modify a few things relating to callbacks.
     modified_cfgs = [] 
