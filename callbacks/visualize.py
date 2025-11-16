@@ -131,17 +131,18 @@ class ShowPredictions:
         for b_idx in range(bs):
             col_idx = b_idx % ncols
             row_idx = b_idx // ncols
+            x_idx = x[b_idx].squeeze()
             if bs == 1:
                 axarr.set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
-                im1 = axarr.imshow(x[b_idx].squeeze(), cmap=img_cmap, interpolation='None')
+                im1 = axarr.imshow(x_idx, cmap=img_cmap, interpolation='None')
                 f.colorbar(im1, ax=axarr, orientation='vertical')
             elif nrows == 1:
                 axarr[col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
-                im1 = axarr[col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
+                im1 = axarr[col_idx].imshow(x_idx, cmap=img_cmap, interpolation='None')
                 f.colorbar(im1, ax=axarr[col_idx], orientation='vertical')
             else:
                 axarr[row_idx, col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
-                im1 = axarr[row_idx, col_idx].imshow(x[b_idx], cmap=img_cmap, interpolation='None')
+                im1 = axarr[row_idx, col_idx].imshow(x_idx, cmap=img_cmap, interpolation='None')
                 f.colorbar(im1, ax=axarr[row_idx, col_idx], orientation='vertical')
         # Turn off all of the grids and axes in the subplot array
         if not isinstance(axarr, np.ndarray):
