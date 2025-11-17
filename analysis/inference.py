@@ -8,6 +8,7 @@ from ionpy.util.torchutils import to_device
 import ionpy.analysis.analysis_utils.helpers as inf_helpers 
 import ionpy.analysis.analysis_utils.inference_utils as inf_utils
 # Misc imports
+import os
 import numpy as np
 from tqdm import tqdm
 from pprint import pprint
@@ -55,7 +56,7 @@ def standard_dataloader_loop(
     exp = inf_init_obj["exp"]
     inf_kwarg_grid = inf_helpers.get_kwarg_sweep(inf_cfg_dict)
     # Check if AMP is enabled in config
-    use_amp = inf_cfg_dict.get('experiment', {}).get('use_amp', True)
+    use_amp = inf_cfg_dict.get('experiment', {}).get('use_amp', False)
     print(f"Using AMP Mode: {use_amp}")
     amp_context = autocast() if use_amp else nullcontext()
     # Go through each batch in the dataloader. We use a batch_idx
@@ -79,6 +80,7 @@ def standard_dataloader_loop(
                 metadata_dict={**predict_params, **data_props},
                 inference_cfg=inf_cfg_dict,
                 trackers=inf_init_obj['trackers'],
+                output_root=inf_init_obj['output_root'],
             )
         # Save intermediate results periodically.
         if inf_init_obj['data_counter'] % inf_cfg_dict['log']['log_interval'] == 0:
@@ -94,10 +96,21 @@ def calculate_batch_stats(
     forward_batch, 
     metadata_dict,
     inference_cfg,
-    trackers 
+    trackers,
+    output_root
 ):
     inf_metric_cfg = inference_cfg["metrics"]
     assert len(inf_metric_cfg) != 0, "No metrics were specified in the config file."
+
+    # Save predictions if requested
+    if inference_cfg["log"].get("save_preds", False):
+        preds_dir = os.path.join(output_root, "preds")
+        os.makedirs(preds_dir, exist_ok=True)
+        y_pred = forward_batch["y_pred"]
+        # Save each prediction in the batch
+        for idx, data_id in enumerate(forward_batch["data_id"]):
+            pred_path = os.path.join(preds_dir, f"{data_id}.npy")
+            np.save(pred_path, y_pred[idx].cpu().numpy())
 
     # Calculate the amount of each label in the batch
     dump_keys = inference_cfg["log"].get("dump_keys", [])

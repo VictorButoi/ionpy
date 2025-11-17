@@ -2,18 +2,14 @@
 import os
 import yaml
 import pickle
-import inspect
-import itertools
-from typing import Optional
+from pprint import pprint
 from pydantic import validate_arguments 
-from torch.utils.data import DataLoader
 # ionpy imports
 from ionpy.util import Config
-from ionpy.experiment.util import absolute_import, eval_config
-from ionpy.augmentation.gpu_transform_wrappers import build_gpu_aug_pipeline
+from ionpy.experiment.util import eval_config
 # local imports
 from .helpers import save_inference_metadata
-from ...experiment.util import load_experiment, get_exp_load_info
+from ionpy.experiment.util import load_experiment, get_exp_load_info
 
 
 def init_inf_object(inference_cfg):
@@ -30,7 +26,6 @@ def init_inf_object(inference_cfg):
     inference_cfg.update({
         'train': inference_exp_total_cfg_dict['train'],
         'loss_func': inference_exp_total_cfg_dict['loss_func'],
-        'training_data': inference_exp_total_cfg_dict['data'],
         "model": inference_exp_total_cfg_dict['model'],
     })
     inference_cfg['experiment']['pretrained_seed'] = inference_exp_total_cfg_dict['experiment']['seed']

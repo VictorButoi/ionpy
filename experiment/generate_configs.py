@@ -193,16 +193,13 @@ def get_inference_configs(
             if list_key_dict != {}:
                 exp_cfg_update.update(list_key_dict)
             # Add the inference dataset specific details.
-            dataset_inf_cfg_dict = get_inference_dset_info(
-                exp_cfg_update=exp_cfg_update,
-                config_root=config_root
-            )
+            dataset_cfg_dict = get_dset_info(exp_cfg=exp_cfg_update)
             # Update the base config with the new options. Note the order is important here, such that 
             # the exp_cfg_update is the last thing to update.
             for base_cfg_dir in base_cfg_list:
                 with open(f"{config_root}/{base_cfg_dir}", 'r') as base_file:
                     base_cfg = yaml.safe_load(base_file)
-                cfg = Config(dataset_inf_cfg_dict).update([base_cfg, exp_cfg_update])
+                cfg = Config(dataset_cfg_dict).update([base_cfg, exp_cfg_update])
                 # Update the base config with the dataset specific config.
                 cfg = default_cfg.update([cfg])
                 # Make sure that we don't have any tuples.
@@ -417,51 +414,15 @@ def get_range_from_str(val):
     return str(tuple(arg_vals))
 
 
-def get_inference_dset_info(
-    exp_cfg_update,
-    config_root 
+def get_dset_info(
+    exp_cfg: dict,
 ):
     # Total model config
-    base_model_cfg = yaml.safe_load(open(f"{exp_cfg_update['experiment.model_dir']}/config.yml", "r"))
-
+    base_model_cfg = yaml.safe_load(open(f"{exp_cfg['experiment.model_dir']}/config.yml", "r"))
     # Get the data config from the model config.
     base_data_cfg = base_model_cfg["data"]
-
-    # We need to remove a few keys that are not needed for inference.
-    drop_keys = [
-        "iters_per_epoch",
-    ]
-    for d_key in drop_keys:
-        if d_key in base_data_cfg:
-            base_data_cfg.pop(d_key)
-
-    # Get the dataset name, and load the base inference dataset config for that.
-    inf_dset_name = exp_cfg_update.get('inference_data._class', "").split('.')[-1]
-
-    # Add the dataset specific details.
-    inf_dset_cfg_file = config_root / "inference" / f"{inf_dset_name}.yaml"
-    if inf_dset_cfg_file.exists():
-        with open(inf_dset_cfg_file, 'r') as d_file:
-            inf_cfg_presets = yaml.safe_load(d_file)
-    else:
-        inf_cfg_presets = {}
-    # Assert that 'version' is not defined in the base_inf_dataset_cfg, this is not allowed behavior.
-    assert 'version' not in inf_cfg_presets.get("inference_data", {}), "Version should not be defined in the base inference dataset config."
-
-    # NOW WE MODIFY THE ORIGINAL BASE DATA CFG TO INCLUDE THE INFERENCE DATASET CONFIG.
-
-    # We need to modify the inference dataset config to include the data_cfg.
-    inf_dset_presets = inf_cfg_presets.get("inference_data", {})
-
-    # Now we update the trained model config with the inference dataset config.
-    new_inf_dset_cfg = base_data_cfg.copy()
-    new_inf_dset_cfg.update(inf_dset_presets)
-
-    # And we put the updated data_cfg back into the inf_cfg_dict.
-    inf_cfg_presets["inference_data"] = new_inf_dset_cfg
-
-    # Return the data_cfg and the base_inf_dataset_cfg
-    return inf_cfg_presets
+    # Return the data_cfg
+    return {"train_data": base_data_cfg}
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
