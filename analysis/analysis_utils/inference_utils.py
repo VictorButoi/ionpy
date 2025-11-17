@@ -25,8 +25,9 @@ def init_inf_object(inference_cfg):
     inference_exp_total_cfg_dict = inference_exp.config.to_dict()
     inference_cfg.update({
         'train': inference_exp_total_cfg_dict['train'],
+        'model': inference_exp_total_cfg_dict['model'],
         'loss_func': inference_exp_total_cfg_dict['loss_func'],
-        "model": inference_exp_total_cfg_dict['model'],
+        'data': inference_exp_total_cfg_dict['data'],
     })
     inference_cfg['experiment']['pretrained_seed'] = inference_exp_total_cfg_dict['experiment']['seed']
 
