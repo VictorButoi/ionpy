@@ -140,7 +140,7 @@ def get_exp_load_info(pretrained_exp_root):
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def load_experiment(
     exp_class: Any,
-    checkpoint: str,
+    checkpoint: str | None, # Either a checkpoint or None.
     device: str = "cpu",
     strict: bool = True,
     df: Optional[Any] = None, 

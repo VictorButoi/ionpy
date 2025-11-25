@@ -69,10 +69,8 @@ def standard_dataloader_loop(
         # Iterate through each of the inference kwargs and run forward + stats.
         for predict_params in tqdm(inf_kwarg_grid, disable=(len(inf_kwarg_grid) == 1)):
             with amp_context:
-                forward_batch = exp.run_step(
+                forward_batch = exp.predict(
                     batch, 
-                    phase="val",
-                    backward=False,
                     **predict_params,
                 )
             calculate_batch_stats(
@@ -193,5 +191,9 @@ def calculate_batch_stats(
                 }
                 for dump_key in dump_keys:
                     if dump_key != "pred_label_amounts":
-                        record[dump_key] = forward_batch[dump_key][met_idx].item()
+                        dump_item = forward_batch[dump_key][met_idx]
+                        if isinstance(dump_item, torch.Tensor):
+                            dump_item = dump_item.item()
+                        record[dump_key] = dump_item
+                print(record)
                 trackers['image_stats'].append(record)

@@ -283,11 +283,6 @@ def load_inference_dfs(
         inference_df = pd.concat([inference_df, pd.DataFrame(new_columns)], axis=1)
         inference_df.drop(columns=[col for col in inference_df.columns if col in old_raw_keys], inplace=True)
 
-        def dataset(inference_data_class):
-            return inference_data_class.split('.')[-1]
-
-        inference_df.augment(dataset)
-
         # If precomputed_results_path doesn't exist, create it.
         if not os.path.exists(os.path.dirname(precomputed_results_path)):
             os.makedirs(os.path.dirname(precomputed_results_path))
