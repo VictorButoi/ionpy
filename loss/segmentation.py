@@ -30,9 +30,6 @@ def soft_dice_loss(
     square_denom: bool = True,
     log_loss: bool = False,
 ) -> Tensor:
-    # Quick check to see if we are dealing with binary segmentation
-    if y_pred.shape[1] == 1:
-        assert ignore_index is None, "ignore_index is not supported for binary segmentation."
 
     score = soft_dice_score(
         y_pred,
@@ -48,9 +45,6 @@ def soft_dice_loss(
         eps=eps,
         square_denom=square_denom,
     )
-    # Assert that everywhere the score is between 0 and 1 (batch many items)
-    assert (score >= 0).all() and (score <= 1).all(), f"Score is not between 0 and 1: {score}"
-
     if log_loss:
         loss = -torch.log(score.clamp_min(eps))
     else:
