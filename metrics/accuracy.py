@@ -138,6 +138,142 @@ def accuracy(
             return correct
 
 
+def precision(
+    y_pred: Tensor,
+    y_true: Tensor,
+    from_logits: bool = True,
+    multi_task: bool = False,
+):
+    """
+    Compute precision for binary classification tasks.
+    
+    Args:
+        y_pred: Predicted probabilities/logits of shape [batch_size] or [batch_size, num_tasks]
+        y_true: True binary labels of shape [batch_size] or [batch_size, num_tasks]
+        from_logits: Whether to apply sigmoid to predictions
+        multi_task: Whether to treat as multi-task learning (compute precision per task and average)
+    
+    Returns:
+        Precision score (scalar for single task, averaged across tasks for multi-task)
+    """
+    # Apply sigmoid if from_logits is True
+    if from_logits:
+        y_pred = torch.sigmoid(y_pred)
+    
+    # Convert to binary predictions
+    y_hard = (y_pred >= 0.5).to(torch.long)
+    
+    # Ensure y_true is also long type for consistency
+    y_true = y_true.to(torch.long)
+    
+    if multi_task or (y_pred.dim() > 1 and y_pred.shape[1] > 1):
+        # Multi-task case: compute precision for each task and average
+        if y_pred.dim() == 1:
+            # Single task case, but multi_task=True
+            y_hard = y_hard.unsqueeze(1)
+            y_true = y_true.unsqueeze(1)
+        
+        # Compute precision for each task
+        eps = torch.finfo(torch.float32).eps
+        precision_scores = []
+        
+        for task_idx in range(y_hard.shape[1]):
+            task_pred = y_hard[:, task_idx]
+            task_true = y_true[:, task_idx]
+            
+            tp = ((task_pred == 1) & (task_true == 1)).sum().to(torch.float32)
+            fp = ((task_pred == 1) & (task_true == 0)).sum().to(torch.float32)
+            
+            prec = tp / (tp + fp + eps)
+            precision_scores.append(prec)
+        
+        # Average precision across tasks
+        return torch.stack(precision_scores).mean()
+    
+    else:
+        # Single task case: flatten to 1D if needed
+        if y_hard.dim() > 1:
+            y_hard = y_hard.view(-1)
+        if y_true.dim() > 1:
+            y_true = y_true.view(-1)
+        
+        tp = ((y_hard == 1) & (y_true == 1)).sum().to(torch.float32)
+        fp = ((y_hard == 1) & (y_true == 0)).sum().to(torch.float32)
+
+        eps = torch.finfo(torch.float32).eps
+        prec = tp / (tp + fp + eps)
+
+        return prec
+
+
+def recall(
+    y_pred: Tensor,
+    y_true: Tensor,
+    from_logits: bool = True,
+    multi_task: bool = False,
+):
+    """
+    Compute recall for binary classification tasks.
+    
+    Args:
+        y_pred: Predicted probabilities/logits of shape [batch_size] or [batch_size, num_tasks]
+        y_true: True binary labels of shape [batch_size] or [batch_size, num_tasks]
+        from_logits: Whether to apply sigmoid to predictions
+        multi_task: Whether to treat as multi-task learning (compute recall per task and average)
+    
+    Returns:
+        Recall score (scalar for single task, averaged across tasks for multi-task)
+    """
+    # Apply sigmoid if from_logits is True
+    if from_logits:
+        y_pred = torch.sigmoid(y_pred)
+    
+    # Convert to binary predictions
+    y_hard = (y_pred >= 0.5).to(torch.long)
+    
+    # Ensure y_true is also long type for consistency
+    y_true = y_true.to(torch.long)
+    
+    if multi_task or (y_pred.dim() > 1 and y_pred.shape[1] > 1):
+        # Multi-task case: compute recall for each task and average
+        if y_pred.dim() == 1:
+            # Single task case, but multi_task=True
+            y_hard = y_hard.unsqueeze(1)
+            y_true = y_true.unsqueeze(1)
+        
+        # Compute recall for each task
+        eps = torch.finfo(torch.float32).eps
+        recall_scores = []
+        
+        for task_idx in range(y_hard.shape[1]):
+            task_pred = y_hard[:, task_idx]
+            task_true = y_true[:, task_idx]
+            
+            tp = ((task_pred == 1) & (task_true == 1)).sum().to(torch.float32)
+            fn = ((task_pred == 0) & (task_true == 1)).sum().to(torch.float32)
+            
+            rec = tp / (tp + fn + eps)
+            recall_scores.append(rec)
+        
+        # Average recall across tasks
+        return torch.stack(recall_scores).mean()
+    
+    else:
+        # Single task case: flatten to 1D if needed
+        if y_hard.dim() > 1:
+            y_hard = y_hard.view(-1)
+        if y_true.dim() > 1:
+            y_true = y_true.view(-1)
+        
+        tp = ((y_hard == 1) & (y_true == 1)).sum().to(torch.float32)
+        fn = ((y_hard == 0) & (y_true == 1)).sum().to(torch.float32)
+
+        eps = torch.finfo(torch.float32).eps
+        rec = tp / (tp + fn + eps)
+
+        return rec
+
+
 def f1_score(
     y_pred: Tensor,
     y_true: Tensor,
