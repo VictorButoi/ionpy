@@ -37,9 +37,9 @@ class TrainExperiment(BaseExperiment):
         self.build_optim()
         self.build_augmentations(load_aug_pipeline)
         self.build_metrics(init_metrics)
-        self.build_data(load_data)
         self.build_loss()
-
+        self.build_data(load_data)
+        self.build_callbacks()
 
     def build_data(self, load_data):
         data_cfg = self.config["data"].to_dict()
@@ -64,6 +64,7 @@ class TrainExperiment(BaseExperiment):
                 **data_cfg,
                 **val_data_kwargs
             )
+            self.build_dataloader()
 
     def build_dataloader(self):
         if self.config["dataloader.batch_size"] > len(self.train_dataset):
@@ -245,8 +246,6 @@ class TrainExperiment(BaseExperiment):
         if self.config.get('experiment.torch_mixed_precision', False):
             self.grad_scaler = GradScaler('cuda')
 
-        self.build_dataloader()
-        self.build_callbacks()
 
         last_epoch: int = self.properties.get("epoch", -1)
         if last_epoch >= 0:
