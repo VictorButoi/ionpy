@@ -45,19 +45,18 @@ def dice_score(
 
     dice_scores = (2 * intersection + smooth) / (cardinalities + smooth).clamp_min(eps)
 
+    # If a label index is provided, then we only consider the dice score from that label.
+    if label_index is not None:
+        assert ignore_index != label_index, "ignore_index and label_index cannot be the same."
+        dice_scores = dice_scores[:, label_index:label_index+1]
+        true_amounts = true_amounts[:, label_index:label_index+1]
+
     if ignore_empty_labels:
         existing_label = (true_amounts > 0).float()
         if weights is None:
             weights = existing_label
         else:
             weights = weights * existing_label
-
-    # If a label index is provided, then we only consider the dice score from that label.
-    if label_index is not None:
-        assert ignore_empty_labels is False, "ignore_empty_labels is not supported when label_index is provided."
-        assert ignore_index is None, "ignore_index is not supported when label_index is provided."
-        dice_scores = dice_scores[:, label_index:label_index+1]
-        weights = None
         
     return _metric_reduction(
         dice_scores,
