@@ -121,7 +121,7 @@ class ShowPredictions:
         y_hat = y_hat.detach().cpu().numpy()
         
         # Prepare matplotlib objects.
-        bs = y.shape[0]
+        bs = x.shape[0]
         ncols = min(bs, col_wrap)
         nrows = int(np.ceil(bs / ncols))
         f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, nrows * size_per_image))
