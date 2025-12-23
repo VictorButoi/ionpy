@@ -35,11 +35,11 @@ class TrainExperiment(BaseExperiment):
         super().__init__(path, set_seed)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.build_model()
-        self.build_optim()
         self.build_augmentations(load_aug_pipeline)
         self.build_metrics(init_metrics)
         self.build_loss()
         self.build_data(load_data)
+        self.build_optim()
         self.build_callbacks()
 
     def build_data(self, load_data):
