@@ -29,6 +29,7 @@ class TrainExperiment(BaseExperiment):
         set_seed=True, 
         init_metrics=True, 
         load_data=True, 
+        load_optim=True,
         load_aug_pipeline=True
     ):
         torch.backends.cudnn.benchmark = True
@@ -39,7 +40,7 @@ class TrainExperiment(BaseExperiment):
         self.build_metrics(init_metrics)
         self.build_loss()
         self.build_data(load_data)
-        self.build_optim()
+        self.build_optim(load_optim)
         self.build_callbacks()
 
     def build_data(self, load_data):
@@ -111,40 +112,41 @@ class TrainExperiment(BaseExperiment):
         # Move the model to the device
         self.to_device()
 
-    def build_optim(self):
-        optim_cfg = self.config["optim"].to_dict()
-        model_cfg = self.config["model"].to_dict()
-        pt_kwargs = model_cfg.pop("pt_kwargs", {})
-        # First we need to get the optimizer schduler.
-        lr_scheduler_cfg = optim_cfg.pop('lr_scheduler', None)
+    def build_optim(self, load_optim):
+        if load_optim:
+            optim_cfg = self.config["optim"].to_dict()
+            model_cfg = self.config["model"].to_dict()
+            pt_kwargs = model_cfg.pop("pt_kwargs", {})
+            # First we need to get the optimizer schduler.
+            lr_scheduler_cfg = optim_cfg.pop('lr_scheduler', None)
 
-        if "weight_decay" in optim_cfg:
-            optim_cfg["params"] = split_param_groups_by_weight_decay(
-                self.model, optim_cfg["weight_decay"]
-            )
-        else:
-            # Only include parameters that require gradients (not frozen)
-            optim_cfg["params"] = [p for p in self.model.parameters() if p.requires_grad]
-        self.optim = eval_config(optim_cfg)
+            if "weight_decay" in optim_cfg:
+                optim_cfg["params"] = split_param_groups_by_weight_decay(
+                    self.model, optim_cfg["weight_decay"]
+                )
+            else:
+                # Only include parameters that require gradients (not frozen)
+                optim_cfg["params"] = [p for p in self.model.parameters() if p.requires_grad]
+            self.optim = eval_config(optim_cfg)
 
-        # If our scheduler is not none, then we need to set it up here.
-        if lr_scheduler_cfg is not None:
-            self.lr_scheduler = absolute_import(lr_scheduler_cfg.pop("_class"))(
-                self.optim, T_max=self.config["train"]["epochs"], **lr_scheduler_cfg
-            )
-        else:
-            self.lr_scheduler = None
+            # If our scheduler is not none, then we need to set it up here.
+            if lr_scheduler_cfg is not None:
+                self.lr_scheduler = absolute_import(lr_scheduler_cfg.pop("_class"))(
+                    self.optim, T_max=self.config["train"]["epochs"], **lr_scheduler_cfg
+                )
+            else:
+                self.lr_scheduler = None
 
-        # If the pretrained_dir exists, then load the optimizer state dict.
-        if pt_kwargs != {}:
-            load_optim_from_path(
-                self.optim, 
-                device=self.device,
-                **pt_kwargs,
-            )
-        else:
-            # Zero out the gradients as initialization 
-            self.optim.zero_grad()
+            # If the pretrained_dir exists, then load the optimizer state dict.
+            if pt_kwargs != {}:
+                load_optim_from_path(
+                    self.optim, 
+                    device=self.device,
+                    **pt_kwargs,
+                )
+            else:
+                # Zero out the gradients as initialization 
+                self.optim.zero_grad()
 
     def build_loss(self):
         self.loss_func = eval_config(self.config["loss_func"])
@@ -289,13 +291,13 @@ class TrainExperiment(BaseExperiment):
 
     def run_phase(self, phase, epoch):
         dl = getattr(self, f"{phase}_dl")
+
         grad_enabled = phase == "train"
+        self.model.train(grad_enabled)  # For dropout, batchnorm, &c
 
         # Check if augmentations are enabled
         aug_cfg = None if "augmentations" not in self.config else self.config["augmentations"] 
         augmentation = (phase == "train") and (aug_cfg is not None)
-
-        self.model.train(grad_enabled)  # For dropout, batchnorm, &c
 
         phase_meters = MeterDict()
         iter_loader = iter(dl)

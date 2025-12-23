@@ -90,7 +90,8 @@ def load_inference_exp(
         exp_kwargs={
             "set_seed": False,
             "load_data": False,
-            "load_aug_pipeline": False # Unclear if this is correct
+            "load_optim": False,
+            "load_aug_pipeline": False
         },
         device='cuda',
         config_update=inference_cfg,
@@ -109,7 +110,7 @@ def load_inference_exp(
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
-def dataobjs_from_exp(inference_exp,):
+def dataobjs_from_exp(inference_exp):
     data_cfg = inference_exp.config['data'].to_dict()
     split = data_cfg.pop('split')
     # First we build the dataset.
