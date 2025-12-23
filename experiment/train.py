@@ -83,19 +83,11 @@ class TrainExperiment(BaseExperiment):
         total_config = self.config.to_dict()
         model_cfg = total_config["model"]
         pretrained_cfg = total_config.get("pretrained", {})
-
         ema_kwargs = model_cfg.pop("ema", {})
         # Build the model.
         self.model = eval_config(model_cfg)
         self.properties["num_params"] = num_params(self.model)
-        print("Main model #params:", self.properties["num_params"])
-        # Used from MultiverSeg Code.
-        if torch.__version__ >= "2.0.0" and compile_model:
-            print("Compiling model with torch.compile")
-            self.model = torch.compile(self.model)
-            self.compiled = True
-        else:
-            self.compiled = False
+        print("Main model #params: {:,}".format(self.properties["num_params"]))
         # If the pretrained_dir exists, then load the model from the directory.
         if pretrained_cfg != {}:
             load_model_from_path(
@@ -111,6 +103,13 @@ class TrainExperiment(BaseExperiment):
             ) 
         # Move the model to the device
         self.to_device()
+        # Used from MultiverSeg Code.
+        if torch.__version__ >= "2.0.0" and compile_model:
+            print("Compiling model with torch.compile")
+            self.model = torch.compile(self.model)
+            self.compiled = True
+        else:
+            self.compiled = False
 
     def build_optim(self, load_optim):
         if load_optim:
