@@ -89,6 +89,7 @@ class ShowPredictions:
         threshold: float = 0.5,
         size_per_image: int = 20,
         multi_task: bool = False,
+        from_logits: bool = True,
         img_cmap: Optional[str] = None,
         denormalize_fn: Optional[Any] = None,
     ):
@@ -98,10 +99,20 @@ class ShowPredictions:
         y_hat = batch["y_pred"]
 
         # Get the predicted label
-        if y_hat.shape[1] == 1 or multi_task:
-            y_hat = (torch.sigmoid(y_hat) > threshold).int()
+        if "y_hard" in batch:
+            y_hard = batch["y_hard"]
         else:
-            y_hat = torch.argmax(y_hat, axis=1)
+            # First, apply the sigmoid or softmax if needed.
+            if from_logits:
+                if y_hat.shape[1] == 1:
+                    y_hat = torch.sigmoid(y_hat)
+                else:   
+                    y_hat = torch.softmax(y_hat, axis=1)
+            # Now we reduce to the hard prediction.
+            if y_hat.shape[1] == 1 or multi_task:
+                y_hard = (y_hat >= threshold).int()
+            else:
+                y_hard = torch.argmax(y_hat, axis=1, keepdim=True)
         
         # Denormalize the image if needed.
         if denormalize_fn is not None:
@@ -118,7 +129,7 @@ class ShowPredictions:
         # Prepare the tensors for visualization as npdarrays.
         x = x.detach().cpu().numpy()
         y = y.detach().cpu().numpy()
-        y_hat = y_hat.detach().cpu().numpy()
+        y_hard = y_hard.detach().cpu().numpy()
         
         # Prepare matplotlib objects.
         bs = x.shape[0]
@@ -126,22 +137,22 @@ class ShowPredictions:
         nrows = int(np.ceil(bs / ncols))
         f, axarr = plt.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * size_per_image, nrows * size_per_image))
         # Print the batch acurracy.
-        print("Batch Accuracy: ", (y == y_hat).mean(axis=1).mean().item())
+        print("Batch Accuracy: ", (y == y_hard).mean(axis=1).mean().item())
         # Go through each item in the batch.
         for b_idx in range(bs):
             col_idx = b_idx % ncols
             row_idx = b_idx // ncols
             x_idx = x[b_idx].squeeze()
             if bs == 1:
-                axarr.set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
+                axarr.set_title(f"Predicted: {y_hard[b_idx]} GT: {y[b_idx]}")
                 im1 = axarr.imshow(x_idx, cmap=img_cmap, interpolation='None')
                 f.colorbar(im1, ax=axarr, orientation='vertical')
             elif nrows == 1:
-                axarr[col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
+                axarr[col_idx].set_title(f"Predicted: {y_hard[b_idx]} GT: {y[b_idx]}")
                 im1 = axarr[col_idx].imshow(x_idx, cmap=img_cmap, interpolation='None')
                 f.colorbar(im1, ax=axarr[col_idx], orientation='vertical')
             else:
-                axarr[row_idx, col_idx].set_title(f"Predicted: {y_hat[b_idx]} GT: {y[b_idx]}")
+                axarr[row_idx, col_idx].set_title(f"Predicted: {y_hard[b_idx]} GT: {y[b_idx]}")
                 im1 = axarr[row_idx, col_idx].imshow(x_idx, cmap=img_cmap, interpolation='None')
                 f.colorbar(im1, ax=axarr[row_idx, col_idx], orientation='vertical')
         # Turn off all of the grids and axes in the subplot array
