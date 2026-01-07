@@ -84,6 +84,7 @@ class TrainExperiment(BaseExperiment):
         model_cfg = total_config["model"]
         pretrained_cfg = total_config.get("pretrained", {})
         ema_kwargs = model_cfg.pop("ema", {})
+        verbose = model_cfg.pop("verbose", True)
         # Build the model.
         self.model = eval_config(model_cfg)
         self.properties["num_params"] = num_params(self.model)
@@ -110,6 +111,13 @@ class TrainExperiment(BaseExperiment):
             self.compiled = True
         else:
             self.compiled = False
+        # Print the model architecture for debugging (e.g., batchnorm inspection)
+        if verbose:
+            print("=" * 60)
+            print("MODEL ARCHITECTURE (before compilation):")
+            print("=" * 60)
+            print(self.model)
+            print("=" * 60)
 
     def build_optim(self, load_optim):
         if load_optim:
