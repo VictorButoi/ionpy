@@ -176,10 +176,11 @@ def get_inference_configs(
     dataset_cfgs = []
     # Iterate through all of our inference options.
     for run_opt_dict in total_run_cfg_options: 
-        model_set = gather_pretrained_models(run_opt_dict.pop('base_model')) 
+        model_set = gather_pretrained_models(run_opt_dict.pop('experiment.base_model')) 
         # Append these to the list of configs and roots.
         dataset_cfgs.append({
             'log.root': [str(inference_log_root)],
+            'experiment.base_model': model_set,
             'experiment.model_dir': model_set,
             **run_opt_dict,
             **default_config_options
