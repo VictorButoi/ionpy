@@ -121,7 +121,6 @@ def pixel_crossentropy_loss(
     """
     assert len(y_pred.shape) > 2, "y_pred must have at least 3 dimensions."
     batch_size, num_classes = y_pred.shape[:2]
-    y_true = y_true.long()
 
     if mode == "auto":
         if y_pred.shape == y_true.shape:
@@ -150,6 +149,7 @@ def pixel_crossentropy_loss(
                 )
         loss = loss.squeeze(dim=1)
     else:
+        y_true = y_true.long()
         # Squeeze the label, (no need for channel dimension).
         if len(y_true.shape) == len(y_pred.shape):
             y_true = y_true.squeeze(1)

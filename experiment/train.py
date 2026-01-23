@@ -84,7 +84,7 @@ class TrainExperiment(BaseExperiment):
         model_cfg = total_config["model"]
         pretrained_cfg = total_config.get("pretrained", {})
         ema_kwargs = model_cfg.pop("ema", {})
-        verbose = model_cfg.pop("verbose", True)
+        verbose = model_cfg.pop("verbose", False)
         # Build the model.
         self.model = eval_config(model_cfg)
         self.properties["num_params"] = num_params(self.model)

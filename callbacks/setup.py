@@ -3,7 +3,7 @@ import json
 import pandas as pd
 from tabulate import tabulate
 
-from ..util import S3Path
+# from ..util import S3Path
 from ..util.summary import summary
 
 from ..metrics import module_table, parameter_table
