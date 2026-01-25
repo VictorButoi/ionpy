@@ -376,12 +376,8 @@ class TrainExperiment(BaseExperiment):
                         profile_times['metrics'] += time.perf_counter() - t0
                         profile_counts['metrics'] += 1
                     
-                    # Keep track of what our y_tru and y_pred are for the entire phase.
-                    output_dict["y_true"].append(outputs["y_true"])
-                    output_dict["y_pred"].append(outputs["y_pred"])
-                    # Then add the trackers to the tracker dictionary.
-                    for t_name in tracker_dict:
-                        tracker_dict[t_name].append(outputs[t_name])
+                    # Accumulate outputs for global metrics and trackers.
+                    self.accumulate_step_outputs(outputs, output_dict, tracker_dict)
                     # Run the batch-wise callbacks if you have them.
                     self.run_callbacks(
                         "batch", 
@@ -545,6 +541,24 @@ class TrainExperiment(BaseExperiment):
             y_true = output_dict["y_true"]
             metrics[name] = fn(y_pred, y_true).item()
         return metrics
+
+    def accumulate_step_outputs(self, outputs: dict, output_dict: dict, tracker_dict: dict) -> None:
+        """
+        Accumulate step outputs into phase-level dictionaries.
+        
+        Override this method in subclasses to change which keys are accumulated.
+        
+        Args:
+            outputs: Dictionary of outputs from run_step
+            output_dict: Dictionary to accumulate y_true and y_pred across the phase
+            tracker_dict: Dictionary to accumulate tracker values across the phase
+        """
+        # Keep track of what our y_true and y_pred are for the entire phase.
+        output_dict["y_true"].append(outputs["y_true"])
+        output_dict["y_pred"].append(outputs["y_pred"])
+        # Then add the trackers to the tracker dictionary.
+        for t_name in tracker_dict:
+            tracker_dict[t_name].append(outputs[t_name])
 
     def build_augmentations(self, load_aug_pipeline):
         pass
