@@ -128,7 +128,7 @@ class ModelCheckpoint:
         self.save_freq = save_freq
 
         min_patterns = ["*loss*", "*err*"]
-        max_patterns = ["*acc*", "*precision*", "*score*"]
+        max_patterns = ["*acc*", "*precision*", "*score*", "auroc", "auprc"]
 
         if isinstance(monitor, str):
             self.monitors = [monitor]
