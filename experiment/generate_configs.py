@@ -110,110 +110,83 @@ def get_training_configs(
 def get_inference_configs(
     exp_cfg: dict,
     default_cfg: Config,
-    base_cfg_list: List[str],
+    base_cfg_list: Optional[List[str]],
     config_root: Path,
     scratch_root: Path,
     add_date: bool = True,
 ):
-    # We need to flatten the experiment config to get the different options.
-    # Building new yamls under the exp_name name for model type.
-    # Save the experiment config.
+    # Extract group info and build experiment name
     group_str = exp_cfg.pop('group')
     sub_group_str = exp_cfg.pop('subgroup', "")
     exp_name = f"{group_str}/{sub_group_str}"
-
-    # Get the root for the inference experiments.
     inference_log_root = get_exp_root(exp_name, group="inference", add_date=add_date, scratch_root=scratch_root)
 
-    # Flatten the config.
+    # Flatten and process the experiment config
     flat_exp_cfg_dict = flatten_cfg2dict(exp_cfg)
-    # For any key that is a tuple we need to convert it to a list, this is an artifact of the flattening..
-    for key, val in flat_exp_cfg_dict.items():
+    
+    # Process values: convert tuples to lists, handle range strings, ensure all are lists
+    for key in list(flat_exp_cfg_dict.keys()):
+        val = flat_exp_cfg_dict[key]
+        # Convert tuples to lists
         if isinstance(val, tuple):
-            flat_exp_cfg_dict[key] = list(val)
-
-    # Sometimes we want to do a range of values to sweep over, we will know this by ... in it.
-    for key, val in flat_exp_cfg_dict.items():
+            val = list(val)
+            flat_exp_cfg_dict[key] = val
+        # Handle range strings (e.g., "(0, ..., 10, 1)")
         if isinstance(val, list):
-            for idx, val_list_item in enumerate(val):
-                if isinstance(val_list_item, str) and '...' in val_list_item:
-                    # Replace the string with a range.
-                    flat_exp_cfg_dict[key][idx] = get_range_from_str(val_list_item)
-        elif isinstance(val, str) and  '...' in val:
-            # Finally stick this back in as a string tuple version.
+            for idx, item in enumerate(val):
+                if isinstance(item, str) and '...' in item:
+                    flat_exp_cfg_dict[key][idx] = get_range_from_str(item)
+        elif isinstance(val, str) and '...' in val:
             flat_exp_cfg_dict[key] = get_range_from_str(val)
+        # Ensure all values are lists for product
+        if not isinstance(flat_exp_cfg_dict[key], list):
+            flat_exp_cfg_dict[key] = [flat_exp_cfg_dict[key]]
 
-    #First going through and making sure each option is a list and then using itertools.product.
-    for ico_key in flat_exp_cfg_dict:
-        if not isinstance(flat_exp_cfg_dict[ico_key], list):
-            flat_exp_cfg_dict[ico_key] = [flat_exp_cfg_dict[ico_key]]
-    
-    # There are a set of keys which correspond to actual lists that need to be
-    # preserved.
-    list_keys = [
-        "inference_data.train_transforms",
-        "inference_data.val_transforms",
-    ]
-    list_key_dict = {}
-    for list_key in list_keys:
-        if list_key in flat_exp_cfg_dict:
-            list_key_dict[list_key] = flat_exp_cfg_dict.pop(list_key)
-    # Gather the different config options.
+    # Extract keys that should remain as lists (not be expanded in product)
+    preserved_list_keys = ["inference_data.train_transforms", "inference_data.val_transforms"]
+    list_key_dict = {k: flat_exp_cfg_dict.pop(k) for k in preserved_list_keys if k in flat_exp_cfg_dict}
+
+    # Generate all config option combinations
     cfg_opt_keys = list(flat_exp_cfg_dict.keys())
-    
-    # Generate product tuples 
-    product_tuples = list(itertools.product(*[flat_exp_cfg_dict[key] for key in cfg_opt_keys]))
+    run_options = [dict(zip(cfg_opt_keys, vals)) for vals in itertools.product(*[flat_exp_cfg_dict[k] for k in cfg_opt_keys])]
 
-    # Convert product tuples to dictionaries
-    total_run_cfg_options = [{cfg_opt_keys[i]: [item[i]] for i in range(len(cfg_opt_keys))} for item in product_tuples]
-
-    # Define the set of default config options.
-    default_config_options = {
-        'experiment.exp_name': [exp_name],
-        'experiment.exp_root': [str(inference_log_root)],
-    }
-    # Accumulate a set of config options for each dataset
-    dataset_cfgs = []
-    # Iterate through all of our inference options.
-    for run_opt_dict in total_run_cfg_options: 
-        model_set = gather_pretrained_models(run_opt_dict.pop('experiment.base_model')) 
-        # Append these to the list of configs and roots.
-        dataset_cfgs.append({
-            'log.root': [str(inference_log_root)],
-            'experiment.base_model': model_set,
-            'experiment.model_dir': model_set,
-            **run_opt_dict,
-            **default_config_options
-        })
-    # Keep a list of all the run configuration options.
+    # Build configs
     cfgs = []
-    # Iterate over the different config options for this dataset. 
-    for option_dict in dataset_cfgs:
+    for run_opt in run_options:
+        # Expand base_model to all matching pretrained models
+        model_dirs = gather_pretrained_models([run_opt.pop('experiment.base_model')])
+        
+        # Create option dict for dict_product expansion
+        option_dict = {
+            'log.root': [str(inference_log_root)],
+            'experiment.exp_name': [exp_name],
+            'experiment.exp_root': [str(inference_log_root)],
+            'experiment.base_model': model_dirs,
+            'experiment.model_dir': model_dirs,
+            **{k: [v] for k, v in run_opt.items()},
+        }
+        
+        # Expand over all model directories
         for exp_cfg_update in dict_product(option_dict):
-            # Add the list keys back in to the experiment update.
-            if list_key_dict != {}:
-                exp_cfg_update.update(list_key_dict)
-            # Add the inference dataset specific details.
+            exp_cfg_update.update(list_key_dict)
             dataset_cfg_dict = get_dset_info(exp_cfg=exp_cfg_update)
-            # Update the base config with the new options. Note the order is important here, such that 
-            # the exp_cfg_update is the last thing to update.
-            for base_cfg_dir in base_cfg_list:
-                with open(f"{config_root}/{base_cfg_dir}", 'r') as base_file:
-                    base_cfg = yaml.safe_load(base_file)
-                cfg = Config(dataset_cfg_dict).update([base_cfg, exp_cfg_update])
-                # Update the base config with the dataset specific config.
+            
+            # Apply base configs (or none if base_cfg_list is empty/None)
+            base_cfgs_to_apply = base_cfg_list if base_cfg_list else [None]
+            for base_cfg_path in base_cfgs_to_apply:
+                if base_cfg_path is not None:
+                    with open(f"{config_root}/{base_cfg_path}", 'r') as f:
+                        base_cfg = yaml.safe_load(f)
+                    cfg = Config(dataset_cfg_dict).update([base_cfg, exp_cfg_update])
+                else:
+                    cfg = Config(dataset_cfg_dict).update([exp_cfg_update])
+                
                 cfg = default_cfg.update([cfg])
-                # Make sure that we don't have any tuples.
-                cfg_dict = cfg.to_dict()
-                tuplized_cfg = Config(tuplize_str_dict(cfg_dict))
-                # Verify it's a valid config
+                tuplized_cfg = Config(tuplize_str_dict(cfg.to_dict()))
                 check_missing(tuplized_cfg)
-                # Add it to the total list of inference options.
                 cfgs.append(tuplized_cfg)
-    # Finally, generate the uuid that identify each of the configs.
-    cfgs = generate_config_uuids(cfgs)
 
-    return cfgs
+    return generate_config_uuids(cfgs)
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
@@ -418,12 +391,15 @@ def get_range_from_str(val):
 def get_dset_info(
     exp_cfg: dict,
 ):
-    # Total model config
+    # Load the base model config
     base_model_cfg = yaml.safe_load(open(f"{exp_cfg['experiment.model_dir']}/config.yml", "r"))
-    # Get the data config from the model config.
-    base_data_cfg = base_model_cfg["data"]
-    # Return the data_cfg
-    return {"train_data": base_data_cfg}
+    # Return the data config and model config from the base model
+    # Note: We don't include experiment._class here - for inference, 
+    # the user should specify the inference class in their default config
+    return {
+        "train_data": base_model_cfg["data"],
+        "model": base_model_cfg["model"],
+    }
 
 
 @validate_arguments(config=dict(arbitrary_types_allowed=True))

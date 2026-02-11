@@ -375,9 +375,9 @@ class TrainExperiment(BaseExperiment):
                             torch.cuda.synchronize()
                         profile_times['metrics'] += time.perf_counter() - t0
                         profile_counts['metrics'] += 1
-                    
                     # Accumulate outputs for global metrics and trackers.
-                    self.accumulate_step_outputs(outputs, output_dict, tracker_dict)
+                    if len(self.global_metric_fns) > 0 or len(tracker_dict) > 0:
+                        self.accumulate_step_outputs(outputs, output_dict, tracker_dict)
                     # Run the batch-wise callbacks if you have them.
                     self.run_callbacks(
                         "batch", 
