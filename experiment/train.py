@@ -79,12 +79,27 @@ class TrainExperiment(BaseExperiment):
             self.val_dataset, shuffle=False, drop_last=False, **dl_cfg
         )
 
-    def build_model(self, compile_model=False):
+    @staticmethod
+    def _maybe_compile(module, compile_cfg):
+        """Apply torch.compile if compile_cfg is provided and enabled."""
+        if compile_cfg is None:
+            return module
+        if hasattr(compile_cfg, 'to_dict'):
+            compile_cfg = compile_cfg.to_dict()
+        else:
+            compile_cfg = dict(compile_cfg)
+        if not compile_cfg.pop('enabled'):
+            return module
+        print(f"Compiling {module.__class__.__name__} with torch.compile({compile_cfg})")
+        return torch.compile(module, **compile_cfg)
+
+    def build_model(self):
         total_config = self.config.to_dict()
         model_cfg = total_config["model"]
         pretrained_cfg = total_config.get("pretrained", {})
         ema_kwargs = model_cfg.pop("ema", {})
         verbose = model_cfg.pop("verbose", False)
+        compile_cfg = model_cfg.pop("compile_cfg", None)
         # Build the model.
         self.model = eval_config(model_cfg)
         self.properties["num_params"] = num_params(self.model)
@@ -104,13 +119,7 @@ class TrainExperiment(BaseExperiment):
             ) 
         # Move the model to the device
         self.to_device()
-        # Used from MultiverSeg Code.
-        if torch.__version__ >= "2.0.0" and compile_model:
-            print("Compiling model with torch.compile")
-            self.model = torch.compile(self.model)
-            self.compiled = True
-        else:
-            self.compiled = False
+        self.model = self._maybe_compile(self.model, compile_cfg)
         # Print the model architecture for debugging (e.g., batchnorm inspection)
         if verbose:
             print("=" * 60)
@@ -169,9 +178,10 @@ class TrainExperiment(BaseExperiment):
                 self.metric_fns = eval_config(
                     self.config["log.metrics"].to_dict()
                 )
-            if "log.global_metrics" in self.config and self.config["log.global_metrics"] is not None:
+            global_metrics_cfg = self.config.get("log.global_metrics", None)
+            if global_metrics_cfg is not None:
                 self.global_metric_fns = eval_config(
-                    self.config["log.global_metrics"].to_dict()
+                    global_metrics_cfg.to_dict()
                 )
 
     def build_initialization(self):
@@ -323,9 +333,10 @@ class TrainExperiment(BaseExperiment):
             "y_pred": [],
         }
         # And we have a list of quantities that we want to track over epochs.
-        if self.config["log.trackers"] is not None:
+        log_trackers = self.config.get("log.trackers", None)
+        if log_trackers is not None:
             tracker_dict = {
-                t_name: [] for t_name in self.config["log.trackers"]
+                t_name: [] for t_name in log_trackers
             }
         else:
             tracker_dict = {} 

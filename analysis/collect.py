@@ -178,12 +178,14 @@ class ResultsLoader:
                     columns={c: f"{prefix}.{c}" for c in log_df.columns}, inplace=True
                 )
             if len(copy_cols) > 0:
+                new_cols = {}
                 for col in copy_cols:
                     val = row[col]
                     if isinstance(val, tuple):
-                        log_df[col] = np.array(itertools.repeat(val, len(log_df)))
+                        new_cols[col] = np.array(itertools.repeat(val, len(log_df)))
                     else:
-                        log_df[col] = val
+                        new_cols[col] = val
+                log_df = log_df.assign(**new_cols)
             if expand_attrs:
                 log_df = augment_from_attrs(log_df, prefix=f"{prefix}.")
             log_df["path"] = path
