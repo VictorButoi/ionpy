@@ -208,6 +208,77 @@ def load_experiment(
     return exp_obj
 
 
+def _reconcile_state_dict_keys(model_sd_keys, ckpt_sd):
+    """Reconcile key mismatches between model and checkpoint state dicts.
+
+    Handles two classes of mismatch:
+      1. torch.compile _orig_mod. prefix (add or strip as needed)
+      2. Consistent top-level module renames (e.g. unet_2d_cfg -> unet_2d)
+    """
+    model_keys = set(model_sd_keys)
+
+    # --- Step 1: _orig_mod. prefix from torch.compile ---
+    model_has_orig = any(k.startswith("_orig_mod.") for k in model_keys)
+    ckpt_has_orig = any(k.startswith("_orig_mod.") for k in ckpt_sd)
+    if ckpt_has_orig and not model_has_orig:
+        print("Stripping '_orig_mod.' prefix from checkpoint keys to match model.")
+        ckpt_sd = {k.removeprefix("_orig_mod."): v for k, v in ckpt_sd.items()}
+    elif model_has_orig and not ckpt_has_orig:
+        print("Adding '_orig_mod.' prefix to checkpoint keys to match compiled model.")
+        ckpt_sd = {f"_orig_mod.{k}": v for k, v in ckpt_sd.items()}
+
+    # --- Step 2: detect and fix key prefix mismatches ---
+    ckpt_keys = set(ckpt_sd.keys())
+    missing = model_keys - ckpt_keys
+    unexpected = ckpt_keys - model_keys
+    if not missing or not unexpected:
+        return ckpt_sd
+
+    def _top_prefix(key):
+        return key.split(".")[0]
+
+    # 2a: One-to-one top-level prefix renames (e.g. unet_2d_cfg -> unet_2d)
+    missing_by_pfx, unexpected_by_pfx = {}, {}
+    for k in missing:
+        missing_by_pfx.setdefault(_top_prefix(k), set()).add(k)
+    for k in unexpected:
+        unexpected_by_pfx.setdefault(_top_prefix(k), set()).add(k)
+
+    prefix_map = {}
+    for u_pfx, u_keys in unexpected_by_pfx.items():
+        for m_pfx, m_keys in missing_by_pfx.items():
+            remapped = {m_pfx + k[len(u_pfx):] for k in u_keys}
+            if remapped <= m_keys:
+                prefix_map[u_pfx] = m_pfx
+                break
+
+    if prefix_map:
+        print(f"Remapping checkpoint key prefixes: {prefix_map}")
+        new_sd = {}
+        for k, v in ckpt_sd.items():
+            pfx = _top_prefix(k)
+            if pfx in prefix_map:
+                new_sd[prefix_map[pfx] + k[len(pfx):]] = v
+            else:
+                new_sd[k] = v
+        return new_sd
+
+    # 2b: Checkpoint is a submodule — all ckpt keys need a common prefix prepended.
+    #     e.g. ckpt has "down_blocks.0..." and model expects "unet_2d.down_blocks.0..."
+    model_prefixes = {k.split(".")[0] for k in missing}
+    for m_pfx in model_prefixes:
+        m_pfx_dot = m_pfx + "."
+        candidate = {m_pfx_dot + k for k in unexpected}
+        if candidate <= missing:
+            print(f"Prepending '{m_pfx_dot}' to all checkpoint keys (submodule load).")
+            new_sd = {}
+            for k, v in ckpt_sd.items():
+                new_sd[m_pfx_dot + k if k in unexpected else k] = v
+            return new_sd
+
+    return ckpt_sd
+
+
 def load_model_from_path(model, device, path, checkpoint, strict=True, **kwargs):
     path = pathlib.Path(path)
     weights_path = path / "checkpoints" / f"{checkpoint}.pt"
@@ -217,7 +288,22 @@ def load_model_from_path(model, device, path, checkpoint, strict=True, **kwargs)
             map_location=device, 
             weights_only=True,
         )
-    model.load_state_dict(state["model"], strict=strict)
+    model_keys = set(model.state_dict().keys())
+    ckpt_sd = _reconcile_state_dict_keys(model_keys, state["model"])
+    ckpt_keys = set(ckpt_sd.keys())
+    missing = sorted(model_keys - ckpt_keys)
+    unexpected = sorted(ckpt_keys - model_keys)
+    if missing:
+        print(f"[load_model_from_path] Missing keys ({len(missing)}):")
+        for k in missing:
+            print(f"  - {k}")
+    if unexpected:
+        print(f"[load_model_from_path] Unexpected keys ({len(unexpected)}):")
+        for k in unexpected:
+            print(f"  + {k}")
+    if not missing and not unexpected:
+        print("[load_model_from_path] All keys matched perfectly.")
+    model.load_state_dict(ckpt_sd, strict=strict)
     print(f"Loaded model from: {weights_path}")
 
 

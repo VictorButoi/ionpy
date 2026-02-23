@@ -104,26 +104,27 @@ class TrainExperiment(BaseExperiment):
         self.model = eval_config(model_cfg)
         self.properties["num_params"] = num_params(self.model)
         print("Main model #params: {:,}".format(self.properties["num_params"]))
-        # If the pretrained_dir exists, then load the model from the directory.
-        if pretrained_cfg != {}:
-            load_model_from_path(
-                self.model, 
-                device=self.device,
-                **pretrained_cfg,
-            )
         # If the model has an EMA wrapper, then we need to wrap it.
         if ema_kwargs != {}:
             self.model = EMAWrapper(
                 self.model,
                 **ema_kwargs
             ) 
+        # Load pretrained weights BEFORE compiling so state_dict keys match.
+        if pretrained_cfg != {}:
+            load_model_from_path(
+                self.model, 
+                device=self.device,
+                **pretrained_cfg,
+            )
+        # Compile the model if compile_cfg is provided and enabled.
+        self.model = self._maybe_compile(self.model, compile_cfg)
         # Move the model to the device
         self.to_device()
-        self.model = self._maybe_compile(self.model, compile_cfg)
         # Print the model architecture for debugging (e.g., batchnorm inspection)
         if verbose:
             print("=" * 60)
-            print("MODEL ARCHITECTURE (before compilation):")
+            print("MODEL ARCHITECTURE:")
             print("=" * 60)
             print(self.model)
             print("=" * 60)
