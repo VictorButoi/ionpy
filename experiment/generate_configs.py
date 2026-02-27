@@ -37,12 +37,16 @@ def tuplize_str_dict(d):
 @validate_arguments(config=dict(arbitrary_types_allowed=True))
 def get_training_configs(
     exp_cfg: dict,
-    default_cfg: Config,
+    default_cfg: Config | dict,
     base_cfg_list: List[str],
     config_root: Path,
     scratch_root: Path,
     add_date: bool = True
 ): 
+    # If the default config is a dict, then convert it to a Config object.
+    if isinstance(default_cfg, dict):
+        default_cfg = Config(default_cfg)
+
     # We need to flatten the experiment config to get the different options.
     # Building new yamls under the exp_name name for model type.
     exp_name = exp_cfg.pop('group')
