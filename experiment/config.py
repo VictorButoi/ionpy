@@ -32,7 +32,7 @@ class Config(MutableMapping):
         return f"{self.__class__.__name__}({self.cfg})"
 
     def __str__(self):
-        return yaml.safe_dump(self.cfg, indent=2)
+        return yaml.safe_dump(self.cfg, indent=2, sort_keys=False)
 
     @staticmethod
     def load(file):
@@ -45,7 +45,7 @@ class Config(MutableMapping):
 
     def dump(self, file):
         with open(file, "w") as f:
-            yaml.safe_dump(self.cfg, f, indent=2)
+            yaml.safe_dump(self.cfg, f, indent=2, sort_keys=False)
 
     def digest(self, ignore=None):
         cfg = allbut(self.cfg, ignore)

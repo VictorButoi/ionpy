@@ -244,7 +244,7 @@ class HDict(MutableMapping):
         return cls(autoload(path))
 
     def as_yaml(self) -> str:
-        return yaml.safe_dump(self._data)
+        return yaml.safe_dump(self._data, sort_keys=False)
 
     def to_dict(self) -> dict:
         return copy.deepcopy(self._data)
@@ -426,7 +426,7 @@ class FHDict(HDict):
     def __str__(self):
         with self._fileop():
             header = f"# {repr(self)}\n---\n"
-            return header + yaml.safe_dump(self._data)
+            return header + yaml.safe_dump(self._data, sort_keys=False)
 
     def to_dict(self):
         with self._fileop():

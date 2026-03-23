@@ -51,7 +51,7 @@ def init_inf_object(inference_cfg):
     # SAVE THE METADATA AND PRINT THE INFERENCE CONFIG #
     ####################################################
     task_root = save_inference_metadata(inference_cfg)
-    print(f"Running:\n\n{str(yaml.safe_dump(Config(inference_cfg)._data, indent=0))}")
+    print(f"Running:\n\n{str(yaml.safe_dump(Config(inference_cfg)._data, indent=0, sort_keys=False))}")
 
     ############################################################################
     # INITIALIZE THE METRICS #

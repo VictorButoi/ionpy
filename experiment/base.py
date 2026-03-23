@@ -92,7 +92,7 @@ class BaseExperiment:
 
     def __str__(self):
         s = f"{repr(self)}\n---\n"
-        s += yaml.safe_dump(self.config._data, indent=2)
+        s += yaml.safe_dump(self.config._data, indent=2, sort_keys=False)
         return s
 
     def build_callbacks(self):

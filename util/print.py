@@ -1,7 +1,7 @@
 def printy(mapping):
     import yaml
 
-    print(yaml.safe_dump(mapping))
+    print(yaml.safe_dump(mapping, sort_keys=False))
 
 
 def hsizeof(obj, recursive=True):
