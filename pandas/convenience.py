@@ -105,6 +105,8 @@ def set_value_to_column(df, col, val):
 
 
 def concat_with_attrs(dfs, **concat_kws):
+    if not dfs:
+        return pd.DataFrame()
     all_attrs = reduce(operator.or_, [set(df.attrs) for df in dfs])
     sentinel = object()
     unique_attrs = {}
