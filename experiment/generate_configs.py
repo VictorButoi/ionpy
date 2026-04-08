@@ -41,7 +41,8 @@ def get_training_configs(
     base_cfg_list: List[str],
     config_root: Path,
     scratch_root: Path,
-    add_date: bool = True
+    add_date: bool = True,
+    check_missing_cfgs: bool = True,
 ): 
     # If the default config is a dict, then convert it to a Config object.
     if isinstance(default_cfg, dict):
@@ -103,7 +104,12 @@ def get_training_configs(
     }
 
     # Get the configs
-    cfgs = get_option_product(exp_name, option_set, base_cfg_list=base_config_list)
+    cfgs = get_option_product(
+        exp_name,
+        option_set,
+        base_cfg_list=base_config_list,
+        check_missing_cfgs=check_missing_cfgs,
+    )
     # Finally, generate the uuid that identify each of the configs.
     cfgs = generate_config_uuids(cfgs)
 
@@ -316,7 +322,8 @@ def get_option_product(
     exp_name,
     option_set,
     base_cfg_list: List[Config],
-    add_wandb_string: bool = True
+    add_wandb_string: bool = True,
+    check_missing_cfgs: bool = True,
 ):
     # If option_set is not a list, make it a list
     cfg_list = []
@@ -337,11 +344,11 @@ def get_option_product(
                 cfg = base_cfg.update([cfg_update, cfg_name_args])
             else:
                 cfg = base_cfg.update([cfg_update])
-            # Verify it's a valid config
-            check_missing(cfg)
             # Make sure that our string tuples are converted to actual tuples.
             cfg_dict = cfg.to_dict()
             tuplized_cfg = Config(tuplize_str_dict(cfg_dict))
+            if check_missing_cfgs:
+                check_missing(tuplized_cfg)
             # Finally, we need to 'tuplize' it, which means that we conver the tuples 
             # hiding as string into actual tuples.
             cfg_list.append(tuplized_cfg)

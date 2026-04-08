@@ -21,6 +21,19 @@ from ..nn.ema import EMAWrapper
 from ..nn.util import num_params, split_param_groups_by_weight_decay
 
 
+def _materialize_scalar_metrics(metrics):
+    materialized = {}
+    for key, value in metrics.items():
+        if isinstance(value, torch.Tensor):
+            if value.ndim != 0:
+                raise ValueError(
+                    f"Metric {key!r} must be a scalar tensor at log time, got shape {tuple(value.shape)}."
+                )
+            value = value.item()
+        materialized[key] = value
+    return materialized
+
+
 class TrainExperiment(BaseExperiment):
 
     def __init__(
@@ -399,9 +412,9 @@ class TrainExperiment(BaseExperiment):
                     )
                 else:
                     print(f"Warning: No outputs for batch {batch_idx} in {phase} epoch {epoch}.")
-        phase_metrics = {
-            "phase": phase, "epoch": epoch, **phase_meters.collect("mean")
-        }
+        phase_metrics = _materialize_scalar_metrics(
+            {"phase": phase, "epoch": epoch, **phase_meters.collect("mean")}
+        )
 
         for t_name in tracker_dict:
             tracker_dict[t_name] = torch.cat(tracker_dict[t_name])
