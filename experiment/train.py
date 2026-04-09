@@ -4,6 +4,8 @@ import pathlib
 import numpy as np
 from typing import List
 import time
+import inspect
+import warnings
 from collections import defaultdict
 # Torch imports
 import torch
@@ -46,6 +48,10 @@ class TrainExperiment(BaseExperiment):
         load_aug_pipeline=True
     ):
         torch.backends.cudnn.benchmark = True
+        self.lr_scheduler = None
+        self.lr_scheduler_interval = "epoch"
+        self._scheduler_steps_per_epoch = None
+        self._global_step = 0
         super().__init__(path, set_seed)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.build_model()
@@ -149,6 +155,7 @@ class TrainExperiment(BaseExperiment):
             pt_kwargs = model_cfg.pop("pt_kwargs", {})
             # First we need to get the optimizer schduler.
             lr_scheduler_cfg = optim_cfg.pop('lr_scheduler', None)
+            warmup_cfg = optim_cfg.pop("warmup", None)
 
             if "weight_decay" in optim_cfg:
                 optim_cfg["params"] = split_param_groups_by_weight_decay(
@@ -159,13 +166,7 @@ class TrainExperiment(BaseExperiment):
                 optim_cfg["params"] = [p for p in self.model.parameters() if p.requires_grad]
             self.optim = eval_config(optim_cfg)
 
-            # If our scheduler is not none, then we need to set it up here.
-            if lr_scheduler_cfg is not None:
-                self.lr_scheduler = absolute_import(lr_scheduler_cfg.pop("_class"))(
-                    self.optim, T_max=self.config["train"]["epochs"], **lr_scheduler_cfg
-                )
-            else:
-                self.lr_scheduler = None
+            self.lr_scheduler = self._create_lr_scheduler(lr_scheduler_cfg, warmup_cfg)
 
             # If the pretrained_dir exists, then load the optimizer state dict.
             if pt_kwargs != {}:
@@ -177,6 +178,129 @@ class TrainExperiment(BaseExperiment):
             else:
                 # Zero out the gradients as initialization 
                 self.optim.zero_grad()
+
+    def _resolve_steps_per_epoch(self):
+        if not hasattr(self, "train_dl") or self.train_dl is None:
+            return None
+        return len(self.train_dl)
+
+    def _parse_lr_scheduler_config(self, lr_scheduler_cfg):
+        if lr_scheduler_cfg is None:
+            return None, {}, "epoch"
+        if hasattr(lr_scheduler_cfg, "to_dict"):
+            lr_scheduler_cfg = lr_scheduler_cfg.to_dict()
+
+        if isinstance(lr_scheduler_cfg, str):
+            return lr_scheduler_cfg, {}, "epoch"
+        if isinstance(lr_scheduler_cfg, dict):
+            scheduler_kwargs = dict(lr_scheduler_cfg)
+            interval = scheduler_kwargs.pop("interval", "epoch")
+            scheduler_path = scheduler_kwargs.pop("_class", None)
+            return scheduler_path, scheduler_kwargs, interval
+        raise TypeError(
+            "optim.lr_scheduler must be either None, a class-path string, "
+            f"or a config dict; got {type(lr_scheduler_cfg).__name__}."
+        )
+
+    def _normalize_scheduler_interval(self, interval):
+        if interval is None:
+            return "epoch"
+        if interval not in {"epoch", "step"}:
+            raise ValueError(
+                "optim.lr_scheduler.interval must be either 'epoch' or 'step'; "
+                f"got {interval!r}."
+            )
+        return interval
+
+    def _resolve_total_scheduler_steps(self, interval, steps_per_epoch):
+        epochs = int(self.config["train"]["epochs"])
+        if interval == "epoch":
+            return epochs
+        if steps_per_epoch is None:
+            raise ValueError(
+                "optim.lr_scheduler.interval='step' requires an initialized train dataloader."
+            )
+        return epochs * steps_per_epoch
+
+    def _resolve_warmup_iters(self, warmup_cfg, interval, steps_per_epoch):
+        if warmup_cfg is None:
+            return None
+        if hasattr(warmup_cfg, "to_dict"):
+            warmup_cfg = warmup_cfg.to_dict()
+        warmup_cfg = dict(warmup_cfg)
+
+        has_num_epochs = "num_epochs" in warmup_cfg
+        has_num_steps = "num_steps" in warmup_cfg
+        if has_num_epochs == has_num_steps:
+            raise ValueError(
+                "optim.warmup must define exactly one of 'num_epochs' or 'num_steps'."
+            )
+
+        if interval == "epoch":
+            if has_num_steps:
+                raise ValueError(
+                    "optim.warmup.num_steps is only supported when "
+                    "optim.lr_scheduler.interval='step'."
+                )
+            total_iters = int(warmup_cfg["num_epochs"])
+        else:
+            if has_num_steps:
+                total_iters = int(warmup_cfg["num_steps"])
+            else:
+                if steps_per_epoch is None:
+                    raise ValueError(
+                        "optim.warmup.num_epochs requires an initialized train dataloader "
+                        "when optim.lr_scheduler.interval='step'."
+                    )
+                total_iters = int(warmup_cfg["num_epochs"]) * steps_per_epoch
+
+        if total_iters <= 0:
+            raise ValueError(f"optim.warmup must resolve to a positive duration, got {total_iters}.")
+
+        return total_iters, warmup_cfg
+
+    def _create_lr_scheduler(self, lr_scheduler_cfg, warmup_cfg=None):
+        scheduler_path, scheduler_kwargs, interval = self._parse_lr_scheduler_config(lr_scheduler_cfg)
+        interval = self._normalize_scheduler_interval(interval)
+        steps_per_epoch = self._resolve_steps_per_epoch()
+        self.lr_scheduler_interval = interval
+        self._scheduler_steps_per_epoch = steps_per_epoch
+
+        if scheduler_path is None:
+            return None
+
+        scheduler_cls = absolute_import(scheduler_path)
+        if inspect.isclass(scheduler_cls) and issubclass(
+            scheduler_cls,
+            torch.optim.lr_scheduler.ReduceLROnPlateau,
+        ):
+            raise ValueError(
+                "optim.lr_scheduler does not support metric-driven schedulers such as "
+                "ReduceLROnPlateau in this trainer yet."
+            )
+
+        scheduler_signature = inspect.signature(scheduler_cls)
+        if "T_max" in scheduler_signature.parameters and "T_max" not in scheduler_kwargs:
+            scheduler_kwargs["T_max"] = self._resolve_total_scheduler_steps(interval, steps_per_epoch)
+
+        main_scheduler = scheduler_cls(self.optim, **scheduler_kwargs)
+
+        warmup_spec = self._resolve_warmup_iters(warmup_cfg, interval, steps_per_epoch)
+        if warmup_spec is None:
+            return main_scheduler
+
+        warmup_iters, warmup_cfg = warmup_spec
+        warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+            self.optim,
+            start_factor=warmup_cfg.get("start_factor", 0.01),
+            end_factor=1.0,
+            total_iters=warmup_iters,
+        )
+        return torch.optim.lr_scheduler.SequentialLR(
+            self.optim,
+            schedulers=[warmup_scheduler, main_scheduler],
+            milestones=[warmup_iters],
+        )
 
     def build_loss(self):
         self.loss_func = eval_config(self.config["loss_func"])
@@ -215,11 +339,19 @@ class TrainExperiment(BaseExperiment):
         return {
             "model": self.model.state_dict(),
             "optim": self.optim.state_dict(),
+            "_lr_scheduler_state": None if self.lr_scheduler is None else self.lr_scheduler.state_dict(),
             "_epoch": self.properties["epoch"],
+            "_global_step": self._global_step,
         }
 
     def set_state(self, state, strict=True):
+        scheduler_state = state.get("_lr_scheduler_state")
+        checkpoint_epoch = state["_epoch"]
+        checkpoint_global_step = state.get("_global_step")
+
         for attr, state_dict in state.items():
+            if attr == "optim":
+                continue
             if not attr.startswith("_"):
                 x = getattr(self, attr)
                 if isinstance(x, nn.Module):
@@ -229,7 +361,84 @@ class TrainExperiment(BaseExperiment):
                 else:
                     raise TypeError(f"Unsupported type {type(x)}")
 
-        self._checkpoint_epoch = state["_epoch"]
+        if "optim" in state:
+            if self.lr_scheduler is not None and scheduler_state is None:
+                self._reconstruct_lr_scheduler_state(
+                    checkpoint_epoch=checkpoint_epoch,
+                    checkpoint_global_step=checkpoint_global_step,
+                )
+            self.optim.load_state_dict(state["optim"])
+
+        if self.lr_scheduler is not None:
+            if scheduler_state is not None:
+                self.lr_scheduler.load_state_dict(scheduler_state)
+            self._global_step = (
+                int(checkpoint_global_step)
+                if checkpoint_global_step is not None
+                else self._infer_legacy_global_step(checkpoint_epoch)
+            )
+        else:
+            self._global_step = int(checkpoint_global_step or 0)
+
+        self._checkpoint_epoch = checkpoint_epoch
+
+    def _infer_legacy_global_step(self, checkpoint_epoch):
+        completed_epochs = max(int(checkpoint_epoch) + 1, 0)
+        if self._scheduler_steps_per_epoch is None:
+            return 0
+        return completed_epochs * self._scheduler_steps_per_epoch
+
+    def _reconstruct_lr_scheduler_state(self, checkpoint_epoch, checkpoint_global_step=None):
+        if self.lr_scheduler is None:
+            return
+
+        completed_epochs = max(int(checkpoint_epoch) + 1, 0)
+        if self.lr_scheduler_interval == "epoch":
+            replay_steps = completed_epochs
+            warnings.warn(
+                "Checkpoint is missing scheduler state; reconstructing the epoch-based "
+                "scheduler from the saved epoch.",
+                stacklevel=2,
+            )
+        else:
+            if checkpoint_global_step is not None:
+                replay_steps = int(checkpoint_global_step)
+                warnings.warn(
+                    "Checkpoint is missing scheduler state; reconstructing the step-based "
+                    "scheduler from the saved global step.",
+                    stacklevel=2,
+                )
+            elif self._scheduler_steps_per_epoch is not None:
+                replay_steps = completed_epochs * self._scheduler_steps_per_epoch
+                warnings.warn(
+                    "Checkpoint is missing scheduler state; approximating the step-based "
+                    "scheduler from epoch * len(train_dl).",
+                    stacklevel=2,
+                )
+            else:
+                replay_steps = 0
+                warnings.warn(
+                    "Checkpoint is missing scheduler state and train_dl is unavailable, so "
+                    "the step-based scheduler could not be reconstructed.",
+                    stacklevel=2,
+                )
+
+        if replay_steps <= 0:
+            return
+
+        base_lrs = getattr(self.lr_scheduler, "base_lrs", None)
+        if base_lrs is not None:
+            for param_group, base_lr in zip(self.optim.param_groups, base_lrs):
+                param_group["lr"] = base_lr
+                param_group.setdefault("initial_lr", base_lr)
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=r"Detected call of `lr_scheduler\.step\(\)` before `optimizer\.step\(\)`.*",
+            )
+            for _ in range(replay_steps):
+                self.lr_scheduler.step()
 
     def checkpoint(self, tag=None):
         self.properties["epoch"] = self._epoch
@@ -272,6 +481,15 @@ class TrainExperiment(BaseExperiment):
         for callback in self.callbacks.get(callback_group, []):
             callback(**kwargs)
 
+    def _step_scheduler_on_train_batch_end(self):
+        self._global_step += 1
+        if self.lr_scheduler is not None and self.lr_scheduler_interval == "step":
+            self.lr_scheduler.step()
+
+    def _step_scheduler_on_train_epoch_end(self):
+        if self.lr_scheduler is not None and self.lr_scheduler_interval == "epoch":
+            self.lr_scheduler.step()
+
     def run(self):
         print(f"Running {str(self)}")
         epochs: int = self.config["train.epochs"]
@@ -309,11 +527,10 @@ class TrainExperiment(BaseExperiment):
                 if eo == "train" or eval_freq > 0 and (epoch % eval_freq == 0 or epoch == epochs - 1):
                     self.run_phase(eo, epoch) 
 
+            self._step_scheduler_on_train_epoch_end()
+
             if checkpoint_freq > 0 and epoch % checkpoint_freq == 0:
                 self.checkpoint()
-
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step()
 
             self.run_callbacks("epoch", epoch=epoch)
 
@@ -506,6 +723,7 @@ class TrainExperiment(BaseExperiment):
                 t0 = time.perf_counter()
             self.optim.step()
             self.optim.zero_grad()
+            self._step_scheduler_on_train_batch_end()
             if profile_times is not None:
                 if torch.cuda.is_available():
                     torch.cuda.synchronize()
