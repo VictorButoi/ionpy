@@ -50,6 +50,21 @@ def shorthand_columns(df):
     return df
 
 
+def _repeat_row_columns(row, copy_cols, index):
+    if len(copy_cols) == 0:
+        return pd.DataFrame(index=index)
+
+    repeated_cols = {}
+    num_rows = len(index)
+    for col in copy_cols:
+        val = row[col]
+        if isinstance(val, tuple):
+            repeated_cols[col] = pd.Series([val] * num_rows, index=index, dtype=object)
+        else:
+            repeated_cols[col] = pd.Series([val] * num_rows, index=index)
+    return pd.DataFrame(repeated_cols, index=index)
+
+
 class ResultsLoader:
 
     def __init__(self, cache_file: Optional[str] = None, num_workers: int = 8):
@@ -178,14 +193,8 @@ class ResultsLoader:
                     columns={c: f"{prefix}.{c}" for c in log_df.columns}, inplace=True
                 )
             if len(copy_cols) > 0:
-                new_cols = {}
-                for col in copy_cols:
-                    val = row[col]
-                    if isinstance(val, tuple):
-                        new_cols[col] = np.array(itertools.repeat(val, len(log_df)))
-                    else:
-                        new_cols[col] = val
-                log_df = log_df.assign(**new_cols)
+                config_cols_df = _repeat_row_columns(row, copy_cols, log_df.index)
+                log_df = pd.concat([log_df, config_cols_df], axis=1, copy=False)
             if expand_attrs:
                 log_df = augment_from_attrs(log_df, prefix=f"{prefix}.")
             log_df["path"] = path
