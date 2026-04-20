@@ -16,12 +16,12 @@ class ConvBlock(nn.Module):
 
     in_channels: int
     filters: List[int]
+    residual: bool
     stride: Union[int, List[int]] = 1
     kernel_size: Union[int, List[int]] = 3
     norm: Optional[NormType] = None
     activation: Optional[str] = "LeakyReLU"
     output_activation: Optional[str] = "LeakyReLU"
-    residual: bool = False
     drop_path: float = 0.0
     init_distribution: Optional[str] = "kaiming_normal"
     init_bias: Union[float, int] = 0.0
